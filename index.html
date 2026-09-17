@@ -1,0 +1,2849 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>⚡ THỬ THÁCH VECTƠ TRONG KHÔNG GIAN – HÌNH HỌC KHÔNG GIAN</title>
+
+  <!-- Google Fonts & FontAwesome Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- QRCode.js (Tạo mã QR trực tiếp trên trình duyệt) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <!-- Paho MQTT (Truyền nhận dữ liệu Realtime qua WebSockets) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+
+  <!-- MathJax Configuration & Script -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' },
+      startup: { typeset: false }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --accent: #f59e0b;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f97316;
+      --bg-dark: #090d16;
+      --bg-card: #131c2e;
+      --bg-card-hover: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #24324a;
+      --font-family: 'Plus Jakarta Sans', sans-serif;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background: radial-gradient(circle at 50% 10%, #1e1b4b 0%, #090d16 75%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    #confettiCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 99999;
+    }
+
+    header {
+      background: rgba(9, 13, 22, 0.92);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 1.15rem;
+      color: #fff;
+      cursor: pointer;
+    }
+    .brand i {
+      color: #818cf8;
+      font-size: 1.3rem;
+    }
+    .brand span {
+      background: linear-gradient(135deg, #c084fc, #6366f1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-icon {
+      background: #1e293b;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      border-radius: 50%;
+      width: 42px;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-icon:hover {
+      background: #334155;
+      transform: scale(1.06);
+    }
+    .btn-icon.active {
+      color: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.25rem;
+      max-width: 1050px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .screen {
+      display: none;
+      width: 100%;
+      animation: fadeIn 0.3s ease forwards;
+    }
+    .screen.active {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .title-banner {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .title-banner h1 {
+      font-size: 2.1rem;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #fbbf24, #f59e0b, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .title-banner .sub {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+    .title-banner .motto {
+      display: inline-block;
+      margin-top: 0.6rem;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      padding: 5px 18px;
+      border-radius: 50px;
+      font-size: 0.85rem;
+      color: #c7d2fe;
+      font-weight: 700;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      box-shadow: var(--shadow);
+      width: 100%;
+      max-width: 760px;
+    }
+
+    .btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      width: 100%;
+      max-width: 620px;
+      margin-top: 1.5rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 0.95rem 1.4rem;
+      font-size: 1rem;
+      font-weight: 700;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      text-decoration: none;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    }
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary { background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; }
+    .btn-success { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
+    .btn-accent  { background: linear-gradient(135deg, #f59e0b, #d97706); color: #1e1b4b; }
+    .btn-secondary { background: #24324a; color: #fff; border: 1px solid #334155; }
+    .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; }
+
+    .input-group {
+      margin-bottom: 1.25rem;
+      width: 100%;
+      text-align: left;
+    }
+    .input-group label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 0.45rem;
+      color: var(--text-muted);
+    }
+    .input-field {
+      width: 100%;
+      padding: 0.9rem 1.2rem;
+      background: #090d16;
+      border: 1.5px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: #fff;
+      font-size: 1.1rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-field:focus {
+      border-color: var(--primary);
+    }
+
+    .pin-display-wrapper {
+      background: #090d16;
+      border: 2px dashed var(--primary);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 1.5rem;
+    }
+    .pin-number {
+      font-size: 3.4rem;
+      font-weight: 900;
+      letter-spacing: 7px;
+      color: var(--accent);
+      font-family: monospace;
+    }
+    .qr-container-box {
+      background: #ffffff;
+      padding: 12px;
+      border-radius: 14px;
+      display: inline-block;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+    }
+
+    .player-list-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.25rem 0;
+      background: #090d16;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .player-list-table th, .player-list-table td {
+      padding: 0.8rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .player-list-table th {
+      background: #1a2538;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+
+    .game-top-bar {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      padding: 0 0.5rem;
+    }
+    .q-counter {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #cbd5e1;
+    }
+    .timer-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1.35rem;
+      font-weight: 800;
+      background: #131c2e;
+      padding: 6px 18px;
+      border-radius: 50px;
+      border: 2px solid var(--border-color);
+      color: #fff;
+    }
+    .timer-badge.urgent {
+      border-color: var(--danger);
+      color: var(--danger);
+      animation: pulse 0.6s infinite alternate;
+    }
+    @keyframes pulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.06); }
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background: #24324a;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 1.25rem;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), #ec4899);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .question-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1.75rem 2rem;
+      width: 100%;
+      text-align: center;
+      box-shadow: var(--shadow);
+      margin-bottom: 1.25rem;
+      position: relative;
+    }
+    .question-meta {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 1rem;
+    }
+    .meta-tag {
+      font-size: 0.75rem;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .tag-cat { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+    .tag-level { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; }
+
+    .question-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      line-height: 1.65;
+      margin-bottom: 0.75rem;
+      color: #fff;
+    }
+
+    .svg-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 1rem auto;
+      background: #090d16;
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      max-width: 440px;
+      border: 1px solid var(--border-color);
+    }
+    .svg-container svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .answers-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      width: 100%;
+      margin-bottom: 1.25rem;
+    }
+    .ans-btn {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 1.2rem 1.4rem;
+      border-radius: var(--radius-lg);
+      background: #131c2e;
+      border: 2px solid var(--border-color);
+      color: #fff;
+      font-size: 1.12rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s ease;
+      min-height: 75px;
+    }
+    .ans-btn:hover:not(:disabled) {
+      border-color: var(--primary);
+      background: #1d293d;
+      transform: translateY(-2px);
+    }
+    .ans-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.95;
+    }
+    .ans-prefix {
+      width: 38px;
+      height: 38px;
+      min-width: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 1.15rem;
+    }
+    .ans-a .ans-prefix { background: #ef4444; color: #fff; }
+    .ans-b .ans-prefix { background: #3b82f6; color: #fff; }
+    .ans-c .ans-prefix { background: #10b981; color: #fff; }
+    .ans-d .ans-prefix { background: #f59e0b; color: #1e1b4b; }
+
+    .ans-btn.correct-highlight {
+      background: rgba(16, 185, 129, 0.25) !important;
+      border-color: #10b981 !important;
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+    }
+    .ans-btn.wrong-highlight {
+      background: rgba(239, 68, 68, 0.25) !important;
+      border-color: #ef4444 !important;
+    }
+
+    .student-wait-box {
+      background: rgba(19, 28, 46, 0.95);
+      border: 1.5px dashed var(--accent);
+      border-radius: var(--radius-md);
+      padding: 1.1rem 1.4rem;
+      color: #f1f5f9;
+      font-size: 1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 1rem;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
+    }
+
+    .explanation-card {
+      display: none;
+      background: #090d16;
+      border-left: 5px solid var(--primary);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      margin-top: 1rem;
+      text-align: left;
+      width: 100%;
+    }
+    .explanation-card.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+    .explanation-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .explanation-text {
+      color: #cbd5e1;
+      font-size: 0.95rem;
+      line-height: 1.65;
+    }
+
+    .feedback-banner {
+      margin-bottom: 1rem;
+      font-size: 1.5rem;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .combo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(135deg, #f97316, #ef4444);
+      padding: 4px 14px;
+      border-radius: 30px;
+      font-size: 0.9rem;
+      color: #fff;
+      font-weight: 800;
+      animation: pulse 0.5s infinite alternate;
+    }
+
+    .leaderboard-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+    }
+    .leaderboard-table tr {
+      background: #090d16;
+      border-bottom: 8px solid var(--bg-card);
+      transition: all 0.3s;
+    }
+    .leaderboard-table tr:hover {
+      background: #1a2538;
+    }
+    .leaderboard-table td {
+      padding: 1rem 1.2rem;
+      font-weight: 700;
+    }
+    .rank-cell {
+      width: 60px;
+      font-size: 1.3rem;
+      text-align: center;
+    }
+    .score-cell {
+      text-align: right;
+      color: var(--accent);
+      font-family: monospace;
+      font-size: 1.25rem;
+    }
+
+    .badges-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin: 1.5rem 0;
+    }
+    .badge-chip {
+      background: #090d16;
+      border: 1px solid var(--border-color);
+      padding: 8px 16px;
+      border-radius: 30px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #fbbf24;
+    }
+
+    body.presentation-mode {
+      background: #020617;
+    }
+    body.presentation-mode .card,
+    body.presentation-mode .question-card {
+      max-width: 95vw;
+      background: #0b132b;
+      border-width: 2px;
+    }
+    body.presentation-mode .question-title {
+      font-size: 2rem;
+    }
+    body.presentation-mode .ans-btn {
+      font-size: 1.5rem;
+      min-height: 100px;
+    }
+    body.presentation-mode .svg-container {
+      max-width: 550px;
+    }
+    body.presentation-mode .timer-badge {
+      font-size: 2rem;
+      padding: 8px 24px;
+    }
+
+    .toast-container {
+      position: fixed;
+      bottom: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 999999;
+      pointer-events: none;
+    }
+    .toast-msg {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--accent);
+      color: #fff;
+      padding: 10px 22px;
+      border-radius: 30px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+      animation: fadeIn 0.3s ease;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(5px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    }
+    .modal-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1.75rem;
+      max-width: 440px;
+      width: 90%;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    @media (max-width: 768px) {
+      .btn-grid, .answers-grid {
+        grid-template-columns: 1fr;
+      }
+      .title-banner h1 {
+        font-size: 1.6rem;
+      }
+      .card {
+        padding: 1.25rem;
+      }
+      .pin-number {
+        font-size: 2.6rem;
+      }
+      .ans-btn {
+        font-size: 1rem;
+        padding: 1rem;
+        min-height: 65px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="confettiCanvas"></canvas>
+
+  <header>
+    <div class="brand" onclick="App.confirmHome()">
+      <i class="fa-solid fa-cube"></i>
+      <div><span>VECTƠ TRONG KHÔNG GIAN</span></div>
+    </div>
+    <div class="header-controls">
+      <button class="btn-icon" id="btnMute" title="Bật/Tắt Âm thanh">
+        <i class="fa-solid fa-volume-high"></i>
+      </button>
+      <button class="btn-icon" id="btnPresentation" title="Chế độ Máy chiếu">
+        <i class="fa-solid fa-tv"></i>
+      </button>
+      <button class="btn-icon" id="btnHome" title="Về trang chủ">
+        <i class="fa-solid fa-house"></i>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <div id="screenHome" class="screen active">
+      <div class="title-banner">
+        <div class="sub">HÌNH HỌC KHÔNG GIAN – BÀI 6 (KẾT NỐI TRI THỨC)</div>
+        <h1>⚡ THỬ THÁCH VECTƠ TRONG KHÔNG GIAN ⚡</h1>
+        <div class="motto">Vững lý thuyết – Chắc quy tắc – Chinh phục không gian</div>
+      </div>
+
+      <div class="card" style="text-align: center;">
+        <div style="font-size: 1.05rem; color: #cbd5e1; margin-bottom: 1.5rem; line-height: 1.6;">
+          Đấu trường củng cố lý thuyết trọng tâm: Khái niệm vectơ, quan hệ cùng phương/hướng/bằng nhau, quy tắc 3 điểm, quy tắc hình bình hành, quy tắc hình hộp, tích vô hướng và hệ thức trọng tâm.
+        </div>
+
+        <div class="btn-grid" style="margin: 0 auto;">
+          <button class="btn btn-primary" onclick="App.showTeacherSetup()">
+            <i class="fa-solid fa-chalkboard-user"></i> TẠO PHÒNG GIÁO VIÊN
+          </button>
+          <button class="btn btn-accent" onclick="App.showJoinScreen()">
+            <i class="fa-solid fa-user-graduate"></i> THAM GIA GAME
+          </button>
+          <button class="btn btn-secondary" onclick="App.startPracticeMode()">
+            <i class="fa-solid fa-book-open"></i> ÔN TẬP LÝ THUYẾT
+          </button>
+          <button class="btn btn-secondary" onclick="App.showHistoryScreen()">
+            <i class="fa-solid fa-trophy"></i> BẢNG THÀNH TÍCH
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="screenTeacherSetup" class="screen">
+      <div class="card">
+        <h2 style="margin-bottom: 1.5rem; text-align: center; color: var(--primary);">
+          <i class="fa-solid fa-sliders"></i> CẤU HÌNH PHÒNG THI ĐẤU
+        </h2>
+
+        <div class="input-group">
+          <label><i class="fa-solid fa-list-ol"></i> SỐ LƯỢNG CÂU HỎI LÝ THUYẾT:</label>
+          <select id="cfgNumQuestions" class="input-field">
+            <option value="10">10 Câu (Kiểm tra nhanh)</option>
+            <option value="15">15 Câu (Củng cố tiết học)</option>
+            <option value="20" selected>20 Câu (Tiêu chuẩn)</option>
+            <option value="25">25 Câu (Thách đấu toàn diện)</option>
+            <option value="32">32 Câu (Toàn bộ ngân hàng)</option>
+          </select>
+        </div>
+
+        <div class="input-group">
+          <label><i class="fa-solid fa-stopwatch"></i> THỜI GIAN MỖI CÂU:</label>
+          <select id="cfgQuestionTime" class="input-field">
+            <option value="15">15 Giây (Phản xạ lý thuyết nhanh)</option>
+            <option value="20" selected>20 Giây (Mặc định)</option>
+            <option value="30">30 Giây (Quan sát hình vẽ)</option>
+            <option value="45">45 Giây (Biến đổi chi tiết)</option>
+          </select>
+        </div>
+
+        <div class="input-group">
+          <label><i class="fa-solid fa-users"></i> CHẾ ĐỘ THÍ SINH:</label>
+          <div style="display: flex; gap: 15px; margin-top: 5px;">
+            <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="cfgIncludeDemoPlayers" checked style="width: 18px; height: 18px;">
+              Kèm 5 Học sinh Mô phỏng (Demo Bots kiểm tra giao diện)
+            </label>
+          </div>
+          <small style="color: var(--text-muted);">Bỏ tick nếu tổ chức thi đấu thật trên lớp cho học sinh quét mã.</small>
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-top: 1.5rem;">
+          <button class="btn btn-secondary" style="flex:1;" onclick="App.showHome()">HỦY</button>
+          <button class="btn btn-primary" style="flex:2;" onclick="App.createRoom()">
+            <i class="fa-solid fa-plus-circle"></i> TẠO PHÒNG & MÃ QR
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="screenTeacherLobby" class="screen">
+      <div class="card" style="text-align: center;">
+        <div style="color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; font-weight: 700; margin-bottom: 8px;">
+          MÃ PHÒNG TRỰC TIẾP & MÃ QR
+        </div>
+
+        <div class="pin-display-wrapper">
+          <div class="pin-number" id="lobbyPinDisplay">--- ---</div>
+          <div style="color: #94a3b8; font-size: 0.95rem;">Học sinh dùng camera điện thoại quét mã QR bên dưới để tham gia:</div>
+          <div class="qr-container-box">
+            <div id="lobbyQrCode"></div>
+          </div>
+
+          <div id="mqttConnectionBadge" style="font-size: 0.85rem; color: #38bdf8; font-weight: 600; margin-top: 5px;">
+            <i class="fa-solid fa-wifi"></i> Đang kết nối Trạm Đám mây Realtime...
+          </div>
+        </div>
+
+        <div style="text-align: left; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: 700; color: #fff;">
+            <i class="fa-solid fa-user-check"></i> Danh sách tham gia (<span id="playerCount">0</span>):
+          </span>
+          <span style="font-size: 0.85rem; color: var(--success); font-weight: 700;">
+            <i class="fa-solid fa-circle-dot"></i> Trực tuyến
+          </span>
+        </div>
+
+        <table class="player-list-table">
+          <thead>
+            <tr>
+              <th style="width: 60px;">STT</th>
+              <th>Tên học sinh</th>
+              <th style="width: 130px;">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody id="playerTableBody"></tbody>
+        </table>
+
+        <div style="display: flex; gap: 12px; margin-top: 1rem;">
+          <button class="btn btn-secondary" style="flex: 1;" onclick="App.confirmHome()">ĐÓNG PHÒNG</button>
+          <button class="btn btn-success" style="flex: 2; font-size: 1.15rem;" onclick="App.startHostGame()">
+            <i class="fa-solid fa-rocket"></i> 🚀 BẮT ĐẦU GAME
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="screenJoin" class="screen">
+      <div class="card" style="max-width: 480px; text-align: center;">
+        <h2 style="margin-bottom: 1.5rem; color: var(--accent);">
+          <i class="fa-solid fa-right-to-bracket"></i> THAM GIA PHÒNG CHƠI
+        </h2>
+
+        <div class="input-group">
+          <label>MÃ PHÒNG (PIN):</label>
+          <input type="text" id="joinPinInput" class="input-field" placeholder="Ví dụ: 682419" style="text-align: center; font-size: 1.5rem; letter-spacing: 4px;" maxlength="7">
+        </div>
+
+        <div class="input-group">
+          <label>HỌ VÀ TÊN HỌC SINH:</label>
+          <input type="text" id="joinNameInput" class="input-field" placeholder="Ví dụ: Nguyễn Văn An" style="text-align: center;">
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 1.5rem;">
+          <button class="btn btn-secondary" style="flex: 1;" onclick="App.showHome()">QUAY LẠI</button>
+          <button class="btn btn-accent" style="flex: 2;" onclick="App.submitJoin()">
+            VÀO PHÒNG <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="screenStudentWaiting" class="screen">
+      <div class="card" style="max-width: 500px; text-align: center;">
+        <div style="font-size: 3rem; margin-bottom: 0.5rem; color: var(--accent);">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <h2 style="color: #fff; margin-bottom: 0.5rem;">ĐÃ VÀO PHÒNG THÀNH CÔNG!</h2>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Tên bạn đã xuất hiện trên màn hình máy chiếu.</p>
+
+        <div style="background: #090d16; border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.5rem; border: 1px solid var(--border-color);">
+          <div style="color: var(--text-muted); font-size: 0.85rem;">Học sinh:</div>
+          <div id="studentWaitingName" style="font-size: 1.35rem; font-weight: 800; color: #38bdf8; margin: 4px 0 10px;">---</div>
+          <div style="color: var(--text-muted); font-size: 0.85rem;">Phòng đấu số:</div>
+          <div id="studentWaitingPin" style="font-size: 1.5rem; font-weight: 800; color: var(--accent); font-family: monospace;">--- ---</div>
+        </div>
+
+        <div class="student-wait-box">
+          <i class="fa-solid fa-hourglass-half fa-spin" style="color: var(--accent); font-size: 1.3rem;"></i>
+          <span>Vui lòng chú ý lên bảng máy chiếu, chờ Thầy/Cô bấm bắt đầu...</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="screenGameplay" class="screen">
+      <div class="game-top-bar">
+        <div class="q-counter" id="qCounterDisplay">CÂU 01 / 20</div>
+        <div id="finalShowdownBadge" style="display:none; color: #f43f5e; font-weight: 900; font-size: 1.1rem;">
+          🔥 FINAL SHOWDOWN 🔥
+        </div>
+        <div class="timer-badge" id="timerBadge">
+          <i class="fa-regular fa-clock"></i> <span id="timerText">00:20</span>
+        </div>
+      </div>
+
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="progressBarFill"></div>
+      </div>
+
+      <div class="question-card">
+        <div class="question-meta">
+          <span class="meta-tag tag-cat" id="qCategory">Định nghĩa vectơ</span>
+          <span class="meta-tag tag-level" id="qLevel">Nhận biết</span>
+        </div>
+
+        <div class="question-title" id="qQuestionText">
+          Đang tải dữ liệu câu hỏi...
+        </div>
+
+        <div class="svg-container" id="qSvgContainer" style="display: none;"></div>
+      </div>
+
+      <div id="feedbackBanner" class="feedback-banner" style="display: none;"></div>
+
+      <div class="answers-grid" id="answersGrid">
+        <button class="ans-btn ans-a" onclick="App.handleSelectAnswer('A')">
+          <div class="ans-prefix">A</div>
+          <div class="ans-text" id="ansTextA">Lựa chọn A</div>
+        </button>
+        <button class="ans-btn ans-b" onclick="App.handleSelectAnswer('B')">
+          <div class="ans-prefix">B</div>
+          <div class="ans-text" id="ansTextB">Lựa chọn B</div>
+        </button>
+        <button class="ans-btn ans-c" onclick="App.handleSelectAnswer('C')">
+          <div class="ans-prefix">C</div>
+          <div class="ans-text" id="ansTextC">Lựa chọn C</div>
+        </button>
+        <button class="ans-btn ans-d" onclick="App.handleSelectAnswer('D')">
+          <div class="ans-prefix">D</div>
+          <div class="ans-text" id="ansTextD">Lựa chọn D</div>
+        </button>
+      </div>
+
+      <div class="explanation-card" id="explanationCard">
+        <div class="explanation-title">
+          <i class="fa-solid fa-lightbulb"></i> LỜI GIẢI CHI TIẾT (ĐÁP ÁN: <span id="expCorrectAnswer">A</span>)
+        </div>
+        <div class="explanation-text" id="expText"></div>
+      </div>
+
+      <div id="studentWaitNextBox" class="student-wait-box" style="display: none;">
+        <i class="fa-solid fa-hourglass-half fa-spin" style="color: var(--accent); font-size: 1.3rem;"></i>
+        <span>Bạn đã chọn đáp án! Hãy chú ý lên máy chiếu nghe Thầy/Cô chữa bài và chờ chuyển câu...</span>
+      </div>
+
+      <div id="teacherQuestionControlBox" style="width: 100%; display: flex; justify-content: flex-end; margin-top: 1rem;">
+        <button id="btnNextQuestion" class="btn btn-primary" style="display: none; padding: 0.9rem 2.2rem; font-size: 1.1rem;" onclick="App.goToNextQuestion()">
+          CÂU TIẾP THEO <i class="fa-solid fa-forward"></i>
+        </button>
+      </div>
+    </div>
+
+    <div id="screenRoundLeaderboard" class="screen">
+      <div class="card" style="text-align: center;">
+        <h2 style="color: var(--accent); margin-bottom: 0.5rem;">
+          <i class="fa-solid fa-ranking-star"></i> BẢNG XẾP HẠNG TOP 5
+        </h2>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Cập nhật điểm thi đua trực tiếp</p>
+
+        <table class="leaderboard-table" id="roundLeaderboardTable"></table>
+
+        <div id="distractorAnalysisBox" style="margin-top: 1.5rem; text-align: left; background: #090d16; padding: 1.25rem; border-radius: var(--radius-md); display: none;">
+          <div style="font-weight: 700; color: #38bdf8; margin-bottom: 0.5rem;">
+            <i class="fa-solid fa-chart-pie"></i> PHÂN TÍCH PHƯƠNG ÁN CHỌN CỦA LỚP:
+          </div>
+          <div id="distractorStats" style="display: flex; gap: 15px; font-weight: 600; font-size: 0.9rem; flex-wrap: wrap;"></div>
+          <div id="distractorWarning" style="color: #fb7185; font-size: 0.85rem; margin-top: 8px; font-weight: 700; display: none;">
+            ⚠️ Chú ý: Tỉ lệ học sinh chọn phương án sai này khá cao! Hãy củng cố lại định nghĩa/quy tắc.
+          </div>
+        </div>
+
+        <div id="studentWaitRoundBox" class="student-wait-box" style="display: none; margin-top: 1.5rem;">
+          <i class="fa-solid fa-spinner fa-spin" style="color: var(--accent); font-size: 1.2rem;"></i>
+          <span>Thầy/Cô đang điều khiển trận đấu. Hãy sẵn sàng cho câu tiếp theo!</span>
+        </div>
+
+        <div id="teacherRoundControlBox" style="margin-top: 1.5rem;">
+          <button id="btnContinueGame" class="btn btn-primary" style="width: 100%; font-size: 1.15rem;" onclick="App.continueFromLeaderboard()">
+            TIẾP TỤC VÒNG ĐẤU <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="screenFinalResults" class="screen">
+      <div class="card" style="text-align: center;">
+        <div style="font-size: 3.2rem; margin-bottom: 0.5rem;">🏆</div>
+        <h1 style="color: var(--accent); margin-bottom: 0.5rem;">HOÀN THÀNH THỬ THÁCH!</h1>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Bạn đã nắm vững lý thuyết Vectơ trong không gian!</p>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.5rem;">
+          <div style="background: #090d16; padding: 1rem; border-radius: var(--radius-md);">
+            <div style="color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Tổng Điểm</div>
+            <div id="finalScoreDisplay" style="font-size: 1.8rem; font-weight: 800; color: var(--accent);">0</div>
+          </div>
+          <div style="background: #090d16; padding: 1rem; border-radius: var(--radius-md);">
+            <div style="color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Chính xác</div>
+            <div id="finalAccuracyDisplay" style="font-size: 1.8rem; font-weight: 800; color: var(--success);">0%</div>
+          </div>
+          <div style="background: #090d16; padding: 1rem; border-radius: var(--radius-md);">
+            <div style="color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Chuỗi Đúng</div>
+            <div id="finalMaxComboDisplay" style="font-size: 1.8rem; font-weight: 800; color: #f97316;">x0</div>
+          </div>
+        </div>
+
+        <div style="font-weight: 700; color: #fff; margin-bottom: 0.5rem;">HUY HIỆU ĐẠT ĐƯỢC:</div>
+        <div class="badges-container" id="finalBadgesContainer"></div>
+
+        <div id="teacherReportSection" style="display: none; margin-top: 1.5rem; text-align: left; background: #090d16; border-radius: var(--radius-md); padding: 1.25rem;">
+          <h3 style="color: #38bdf8; margin-bottom: 1rem;"><i class="fa-solid fa-square-poll-vertical"></i> BÁO CÁO TỔNG HỢP CỦA LỚP</h3>
+          <table class="player-list-table" style="margin: 0;">
+            <thead>
+              <tr>
+                <th>Học sinh</th>
+                <th>Điểm</th>
+                <th>Đúng/Tổng</th>
+                <th>Tỉ lệ</th>
+              </tr>
+            </thead>
+            <tbody id="teacherReportTbody"></tbody>
+          </table>
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-top: 2rem;">
+          <button class="btn btn-secondary" style="flex: 1;" onclick="App.showHome()">TRANG CHỦ</button>
+          <button class="btn btn-primary" style="flex: 1;" onclick="App.restartSameGame()">CHƠI LẠI</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="screenHistory" class="screen">
+      <div class="card">
+        <h2 style="text-align: center; color: var(--accent); margin-bottom: 1.5rem;">
+          <i class="fa-solid fa-clock-rotate-left"></i> LỊCH SỬ THI ĐẤU & THÀNH TÍCH
+        </h2>
+
+        <div id="historyEmpty" style="text-align: center; color: var(--text-muted); padding: 2rem; display: none;">
+          Chưa có dữ liệu bài thi nào được lưu trên thiết bị này.
+        </div>
+
+        <table class="player-list-table" id="historyTable">
+          <thead>
+            <tr>
+              <th>Ngày</th>
+              <th>Tên</th>
+              <th>Điểm số</th>
+              <th>Đúng</th>
+              <th>Chính xác</th>
+            </tr>
+          </thead>
+          <tbody id="historyTbody"></tbody>
+        </table>
+
+        <div style="display: flex; gap: 12px; margin-top: 1.5rem;">
+          <button class="btn btn-secondary" style="flex: 1;" onclick="App.showHome()">QUAY LẠI</button>
+          <button class="btn btn-danger" style="flex: 1;" onclick="App.confirmClearHistory()">
+            <i class="fa-solid fa-trash-can"></i> XÓA LỊCH SỬ
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="modal-backdrop" id="customConfirmModal">
+    <div class="modal-box">
+      <div style="font-size: 2.2rem; color: var(--warning); margin-bottom: 0.75rem;">
+        <i class="fa-solid fa-circle-exclamation"></i>
+      </div>
+      <h3 id="modalTitle" style="color: #fff; margin-bottom: 0.5rem;">XÁC NHẬN</h3>
+      <p id="modalMessage" style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem;">Bạn có chắc chắn muốn thực hiện hành động này?</p>
+      <div style="display: flex; gap: 12px;">
+        <button class="btn btn-secondary" style="flex: 1;" onclick="App.closeModal()">HỦY</button>
+        <button id="modalConfirmBtn" class="btn btn-danger" style="flex: 1;">ĐỒNG Ý</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    const SoundEngine = {
+      ctx: null,
+      muted: false,
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      },
+
+      playCorrect() {
+        if (this.muted || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.setValueAtTime(659.25, now + 0.1);
+        osc.frequency.setValueAtTime(1046.50, now + 0.2);
+
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+
+        osc.start(now);
+        osc.stop(now + 0.5);
+      },
+
+      playWrong() {
+        if (this.muted || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.linearRampToValueAtTime(110, now + 0.3);
+
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+        osc.start(now);
+        osc.stop(now + 0.35);
+      },
+
+      playTick() {
+        if (this.muted || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(800, now);
+
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+        osc.start(now);
+        osc.stop(now + 0.05);
+      },
+
+      playVictory() {
+        if (this.muted || !this.ctx) return;
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          const start = this.ctx.currentTime + idx * 0.15;
+          osc.frequency.setValueAtTime(freq, start);
+          gain.gain.setValueAtTime(0.3, start);
+          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.4);
+
+          osc.start(start);
+          osc.stop(start + 0.4);
+        });
+      },
+
+      toggle() {
+        this.init();
+        this.muted = !this.muted;
+        return this.muted;
+      }
+    };
+
+    const Confetti = {
+      canvas: document.getElementById('confettiCanvas'),
+      ctx: document.getElementById('confettiCanvas').getContext('2d'),
+      particles: [],
+      animId: null,
+
+      init() {
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+      },
+
+      resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+      },
+
+      fire() {
+        const colors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#38bdf8'];
+        for (let i = 0; i < 70; i++) {
+          this.particles.push({
+            x: window.innerWidth / 2,
+            y: window.innerHeight / 2,
+            r: Math.random() * 6 + 3,
+            dx: (Math.random() - 0.5) * 15,
+            dy: (Math.random() - 0.7) * 15,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            alpha: 1,
+            decay: Math.random() * 0.02 + 0.015
+          });
+        }
+        if (!this.animId) this.loop();
+      },
+
+      loop() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+          const p = this.particles[i];
+          p.x += p.dx;
+          p.y += p.dy;
+          p.dy += 0.3;
+          p.alpha -= p.decay;
+
+          if (p.alpha <= 0) {
+            this.particles.splice(i, 1);
+            continue;
+          }
+
+          this.ctx.save();
+          this.ctx.globalAlpha = p.alpha;
+          this.ctx.fillStyle = p.color;
+          this.ctx.beginPath();
+          this.ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          this.ctx.fill();
+          this.ctx.restore();
+        }
+
+        if (this.particles.length > 0) {
+          this.animId = requestAnimationFrame(() => this.loop());
+        } else {
+          this.animId = null;
+          this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+      }
+    };
+    Confetti.init();
+
+    /* ==========================================================
+       NGÂN HÀNG CÂU HỎI LÝ THUYẾT: BÀI 6 - VECTƠ TRONG KHÔNG GIAN
+       (Được trích xuất và thiết kế bám sát 2 trang đầu của tài liệu)
+       ========================================================== */
+    const QUESTION_BANK = [
+      {
+        id: 1,
+        category: "Định nghĩa vectơ",
+        level: "Nhận biết",
+        question: "Vectơ trong không gian là gì?",
+        svgType: "vector_single",
+        options: {
+          A: "Một đoạn thẳng có hướng",
+          B: "Một đường thẳng có hướng",
+          C: "Một tia không giới hạn",
+          D: "Một đoạn thẳng không phân biệt thứ tự hai đầu mút"
+        },
+        answer: "A",
+        explanation: "Theo định nghĩa SGK (mục 1, trang 1): Vectơ trong không gian là một đoạn thẳng có hướng.",
+        time: 20
+      },
+      {
+        id: 2,
+        category: "Giá của vectơ",
+        level: "Nhận biết",
+        question: "Giá của vectơ $\\vec{AB}$ là đường thẳng nào sau đây?",
+        svgType: "vector_single",
+        options: {
+          A: "Đường thẳng đi qua điểm đầu $A$ và điểm cuối $B$",
+          B: "Đoạn thẳng nối điểm đầu $A$ và điểm cuối $B$",
+          C: "Đường thẳng vuông góc với đoạn thẳng $AB$",
+          D: "Tia phát xuất từ điểm $A$ đi qua điểm $B$"
+        },
+        answer: "A",
+        explanation: "Giá của vectơ là đường thẳng đi qua điểm đầu và điểm cuối của vectơ đó.",
+        time: 20
+      },
+      {
+        id: 3,
+        category: "Cùng phương - Cùng hướng",
+        level: "Nhận biết",
+        question: "Hai vectơ trong không gian được gọi là cùng phương khi và chỉ khi:",
+        svgType: "vector_parallel",
+        options: {
+          A: "Giá của chúng song song hoặc trùng nhau",
+          B: "Giá của chúng vuông góc với nhau",
+          C: "Giá của chúng cắt nhau",
+          D: "Chúng có cùng độ dài và cùng hướng"
+        },
+        answer: "A",
+        explanation: "Hai vectơ cùng phương nếu giá của chúng song song hoặc trùng nhau.",
+        time: 20
+      },
+      {
+        id: 4,
+        category: "Cùng phương - Cùng hướng",
+        level: "Nhận biết",
+        question: "Trong không gian, hai vectơ có giá cắt nhau hoặc chéo nhau được gọi là hai vectơ:",
+        svgType: null,
+        options: {
+          A: "Không cùng phương",
+          B: "Cùng phương",
+          C: "Ngược hướng",
+          D: "Đối nhau"
+        },
+        answer: "A",
+        explanation: "Theo mục 1 (trang 1): Hai vectơ có giá cắt nhau hoặc chéo nhau được gọi là hai vectơ không cùng phương.",
+        time: 20
+      },
+      {
+        id: 5,
+        category: "Hai vectơ bằng nhau",
+        level: "Nhận biết",
+        question: "Hai vectơ $\\vec{a}$ và $\\vec{b}$ được gọi là bằng nhau khi nào?",
+        svgType: "vector_equal",
+        options: {
+          A: "Chúng cùng hướng và có độ dài bằng nhau",
+          B: "Chúng cùng phương và có độ dài bằng nhau",
+          C: "Chúng có giá song song với nhau",
+          D: "Chúng cùng hướng nhưng có độ dài khác nhau"
+        },
+        answer: "A",
+        explanation: "Hai vectơ bằng nhau nếu chúng thỏa mãn đồng thời hai điều kiện: cùng hướng và có độ dài bằng nhau.",
+        time: 20
+      },
+      {
+        id: 6,
+        category: "Hai vectơ đối nhau",
+        level: "Nhận biết",
+        question: "Hai vectơ được gọi là đối nhau nếu chúng:",
+        svgType: "vector_opposite",
+        options: {
+          A: "Ngược hướng và có độ dài bằng nhau",
+          B: "Cùng hướng và có độ dài bằng nhau",
+          C: "Cùng phương và có độ dài khác nhau",
+          D: "Có giá cắt nhau và có độ dài bằng nhau"
+        },
+        answer: "A",
+        explanation: "Hai vectơ đối nhau nếu chúng ngược hướng và có độ dài bằng nhau. Vectơ đối của $\\vec{a}$ kí hiệu là $-\\vec{a}$.",
+        time: 20
+      },
+      {
+        id: 7,
+        category: "Vectơ-không",
+        level: "Nhận biết",
+        question: "Khẳng định nào sau đây về vectơ-không ($\\vec{0}$) là **sai**?",
+        svgType: null,
+        options: {
+          A: "Vectơ-không có độ dài là một số dương tùy ý",
+          B: "Vectơ-không có điểm đầu và điểm cuối trùng nhau",
+          C: "Vectơ-không có độ dài bằng $0$",
+          D: "Vectơ-không luôn cùng phương, cùng hướng với mọi vectơ"
+        },
+        answer: "A",
+        explanation: "Độ dài của vectơ-không luôn luôn bằng $0$, không thể là số dương.",
+        time: 20
+      },
+      {
+        id: 8,
+        category: "Tổng hai vectơ",
+        level: "Nhận biết",
+        question: "Với ba điểm $A, B, C$ bất kì trong không gian, quy tắc ba điểm của phép cộng vectơ là:",
+        svgType: "vector_sum_3pts",
+        options: {
+          A: "$\\vec{AB} + \\vec{BC} = \\vec{AC}$",
+          B: "$\\vec{AB} + \\vec{AC} = \\vec{BC}$",
+          C: "$\\vec{AB} + \\vec{BC} = \\vec{CA}$",
+          D: "$\\vec{BA} + \\vec{BC} = \\vec{AC}$"
+        },
+        answer: "A",
+        explanation: "Theo quy tắc ba điểm (phép cộng): $\\vec{AB} + \\vec{BC} = \\vec{AC}$.",
+        time: 20
+      },
+      {
+        id: 9,
+        category: "Tổng hai vectơ",
+        level: "Nhận biết",
+        question: "Nếu $ABCD$ là hình bình hành thì hệ thức vectơ nào sau đây đúng (quy tắc hình bình hành)?",
+        svgType: "vector_parallelogram",
+        options: {
+          A: "$\\vec{AB} + \\vec{AD} = \\vec{AC}$",
+          B: "$\\vec{AB} + \\vec{AC} = \\vec{AD}$",
+          C: "$\\vec{AB} + \\vec{AD} = \\vec{BD}$",
+          D: "$\\vec{AB} + \\vec{CD} = \\vec{AC}$"
+        },
+        answer: "A",
+        explanation: "Theo quy tắc hình bình hành: nếu $ABCD$ là hình bình hành thì $\\vec{AB} + \\vec{AD} = \\vec{AC}$.",
+        time: 20
+      },
+      {
+        id: 10,
+        category: "Quy tắc hình hộp",
+        level: "Nhận biết",
+        question: "Cho hình hộp $ABCD.A'B'C'D'$. Quy tắc hình hộp phát biểu rằng:",
+        svgType: "vector_box_rule",
+        options: {
+          A: "$\\vec{AB} + \\vec{AD} + \\vec{AA'} = \\vec{AC'}$",
+          B: "$\\vec{AB} + \\vec{AD} + \\vec{AA'} = \\vec{AC}$",
+          C: "$\\vec{AB} + \\vec{AD} + \\vec{AA'} = \\vec{CA'}$",
+          D: "$\\vec{AB} + \\vec{AD} + \\vec{AA'} = \\vec{BD'}$"
+        },
+        answer: "A",
+        explanation: "Theo quy tắc hình hộp: $\\vec{AB} + \\vec{AD} + \\vec{AA'} = \\vec{AC'}$ (tổng 3 cạnh chung đỉnh bằng đường chéo xuất phát từ đỉnh đó).",
+        time: 20
+      },
+      {
+        id: 11,
+        category: "Hiệu hai vectơ",
+        level: "Nhận biết",
+        question: "Với ba điểm $O, A, B$ bất kì trong không gian, hiệu $\\vec{OB} - \\vec{OA}$ bằng vectơ nào?",
+        svgType: null,
+        options: {
+          A: "$\\vec{AB}$",
+          B: "$\\vec{BA}$",
+          C: "$\\vec{OA} + \\vec{OB}$",
+          D: "$\\vec{0}$"
+        },
+        answer: "A",
+        explanation: "Quy tắc ba điểm của phép trừ vectơ: $\\vec{OB} - \\vec{OA} = \\vec{AB}$.",
+        time: 20
+      },
+      {
+        id: 12,
+        category: "Tích số với vectơ",
+        level: "Nhận biết",
+        question: "Cho số thực $k < 0$ và vectơ $\\vec{a} \\ne \\vec{0}$. Vectơ $k\\vec{a}$ có hướng như thế nào so với $\\vec{a}$?",
+        svgType: null,
+        options: {
+          A: "Ngược hướng với vectơ $\\vec{a}$",
+          B: "Cùng hướng với vectơ $\\vec{a}$",
+          C: "Vuông góc với vectơ $\\vec{a}$",
+          D: "Có hướng bất kì không xác định"
+        },
+        answer: "A",
+        explanation: "Theo định nghĩa (mục 3, trang 1): Nếu $k < 0$ thì vectơ $k\\vec{a}$ ngược hướng với $\\vec{a}$.",
+        time: 20
+      },
+      {
+        id: 13,
+        category: "Tích số với vectơ",
+        level: "Nhận biết",
+        question: "Độ dài của vectơ $k\\vec{a}$ được tính bằng công thức nào?",
+        svgType: null,
+        options: {
+          A: "$|k| \\cdot |\\vec{a}|$",
+          B: "$k \\cdot |\\vec{a}|$",
+          C: "$-k \\cdot |\\vec{a}|$",
+          D: "$k^2 \\cdot |\\vec{a}|$"
+        },
+        answer: "A",
+        explanation: "Độ dài $|k\\vec{a}| = |k| \\cdot |\\vec{a}|$.",
+        time: 15
+      },
+      {
+        id: 14,
+        category: "Góc giữa hai vectơ",
+        level: "Nhận biết",
+        question: "Trong không gian, góc giữa hai vectơ $\\vec{u}$ và $\\vec{v}$ ($\u0111ều$ khác $\\vec{0}$) có số đo nằm trong khoảng nào?",
+        svgType: "vector_angle",
+        options: {
+          A: "Từ $0^\\circ$ đến $180^\\circ$",
+          B: "Từ $0^\\circ$ đến $90^\\circ$",
+          C: "Từ $0^\\circ$ đến $360^\\circ$",
+          D: "Từ $-180^\\circ$ đến $180^\\circ$"
+        },
+        answer: "A",
+        explanation: "Số đo góc giữa hai vectơ thỏa mãn $0^\\circ \\le (\\vec{u}, \\vec{v}) \\le 180^\\circ$.",
+        time: 20
+      },
+      {
+        id: 15,
+        category: "Tích vô hướng",
+        level: "Nhận biết",
+        question: "Tích vô hướng của hai vectơ $\\vec{u}$ và $\\vec{v}$ trong không gian là một đại lượng:",
+        svgType: null,
+        options: {
+          A: "Một số thực",
+          B: "Một vectơ",
+          C: "Một góc lượng giác",
+          D: "Một đoạn thẳng"
+        },
+        answer: "A",
+        explanation: "Theo mục 4.2 (trang 2): Tích vô hướng của hai vectơ $\\vec{u}$ và $\\vec{v}$ là một SỐ, kí hiệu $\\vec{u} \\cdot \\vec{v}$.",
+        time: 20
+      },
+      {
+        id: 16,
+        category: "Tích vô hướng",
+        level: "Nhận biết",
+        question: "Công thức xác định tích vô hướng của hai vectơ $\\vec{u}$ và $\\vec{v}$ là:",
+        svgType: null,
+        options: {
+          A: "$\\vec{u} \\cdot \\vec{v} = |\\vec{u}| \\cdot |\\vec{v}| \\cdot \\cos(\\vec{u}, \\vec{v})$",
+          B: "$\\vec{u} \\cdot \\vec{v} = |\\vec{u}| \\cdot |\\vec{v}| \\cdot \\sin(\\vec{u}, \\vec{v})$",
+          C: "$\\vec{u} \\cdot \\vec{v} = -|\\vec{u}| \\cdot |\\vec{v}| \\cdot \\cos(\\vec{u}, \\vec{v})$",
+          D: "$\\vec{u} \\cdot \\vec{v} = |\\vec{u}| \\cdot |\\vec{v}|$"
+        },
+        answer: "A",
+        explanation: "Công thức chuẩn: $\\vec{u} \\cdot \\vec{v} = |\\vec{u}| \\cdot |\\vec{v}| \\cdot \\cos(\\vec{u}, \\vec{v})$.",
+        time: 20
+      },
+      {
+        id: 17,
+        category: "Tích vô hướng",
+        level: "Nhận biết",
+        question: "Hai vectơ $\\vec{u}$ và $\\vec{v}$ khác $\\vec{0}$ vuông góc với nhau khi và chỉ khi:",
+        svgType: null,
+        options: {
+          A: "$\\vec{u} \\cdot \\vec{v} = 0$",
+          B: "$\\vec{u} \\cdot \\vec{v} = 1$",
+          C: "$\\vec{u} = -\\vec{v}$",
+          D: "$|\\vec{u}| = |\\vec{v}|$"
+        },
+        answer: "A",
+        explanation: "Vì $\\cos 90^\\circ = 0$ nên $\\vec{u} \\perp \\vec{v} \\iff \\vec{u} \\cdot \\vec{v} = 0$.",
+        time: 20
+      },
+      {
+        id: 18,
+        category: "Phép trừ vectơ",
+        level: "Thông hiểu",
+        question: "Cho hình chóp $S.ABCD$ có đáy là hình bình hành. Hiệu $\\vec{SD} - \\vec{SA}$ bằng vectơ nào sau đây?",
+        svgType: null,
+        options: {
+          A: "$\\vec{AD}$",
+          B: "$\\vec{DA}$",
+          C: "$\\vec{AS}$",
+          D: "$\\vec{AC}$"
+        },
+        answer: "A",
+        explanation: "Theo quy tắc ba điểm của phép trừ: $\\vec{SD} - \\vec{SA} = \\vec{AD}$.",
+        time: 25
+      },
+      {
+        id: 19,
+        category: "Phép cộng vectơ",
+        level: "Thông hiểu",
+        question: "Cho hình lăng trụ $ABC.A'B'C'$. Tổng $\\vec{BA} + \\vec{A'C'}$ bằng vectơ nào sau đây?",
+        svgType: "vector_prism",
+        options: {
+          A: "$\\vec{BC}$",
+          B: "$\\vec{CB}$",
+          C: "$\\vec{AC}$",
+          D: "$\\vec{BB'}$"
+        },
+        answer: "A",
+        explanation: "Vì $ACC'A'$ là hình bình hành nên $\\vec{A'C'} = \\vec{AC}$. Khi đó $\\vec{BA} + \\vec{A'C'} = \\vec{BA} + \\vec{AC} = \\vec{BC}$.",
+        time: 30
+      },
+      {
+        id: 20,
+        category: "Quy tắc hình hộp",
+        level: "Thông hiểu",
+        question: "Cho hình hộp $ABCD.EFGH$. Tổng ba vectơ $\\vec{CB} + \\vec{CD} + \\vec{CG}$ bằng vectơ nào?",
+        svgType: "vector_box_rule",
+        options: {
+          A: "$\\vec{CE}$",
+          B: "$\\vec{CA}$",
+          C: "$\\vec{CH}$",
+          D: "$\\vec{CF}$"
+        },
+        answer: "A",
+        explanation: "Áp dụng quy tắc hình hộp xuất phát từ đỉnh $C$: ba cạnh chung đỉnh là $CB, CD, CG$ thì tổng bằng đường chéo $\\vec{CE}$.",
+        time: 30
+      },
+      {
+        id: 21,
+        category: "Hệ thức trung điểm",
+        level: "Thông hiểu",
+        question: "Nếu $M$ là trung điểm của đoạn thẳng $AB$ thì với điểm $O$ bất kì, đẳng thức nào sau đây luôn đúng?",
+        svgType: null,
+        options: {
+          A: "$\\vec{OA} + \\vec{OB} = 2\\vec{OM}$",
+          B: "$\\vec{OA} + \\vec{OB} = \\vec{OM}$",
+          C: "$\\vec{OM} = \\vec{OA} - \\vec{OB}$",
+          D: "$\\vec{OA} + \\vec{OB} = -2\\vec{OM}$"
+        },
+        answer: "A",
+        explanation: "Hệ thức trung điểm quen thuộc: $\\vec{MA} + \\vec{MB} = \\vec{0} \\implies \\vec{OA} + \\vec{OB} = 2\\vec{OM}$.",
+        time: 25
+      },
+      {
+        id: 22,
+        category: "Hệ thức trọng tâm",
+        level: "Thông hiểu",
+        question: "Cho tứ diện $ABCD$ và $G$ là trọng tâm tam giác $ABC$. Khẳng định nào sau đây là đúng?",
+        svgType: "vector_tetrahedron",
+        options: {
+          A: "$\\vec{DA} + \\vec{DB} + \\vec{DC} = 3\\vec{DG}$",
+          B: "$\\vec{DA} + \\vec{DB} + \\vec{DC} = \\vec{DG}$",
+          C: "$\\vec{DA} + \\vec{DB} + \\vec{DC} = 4\\vec{DG}$",
+          D: "$\\vec{GA} + \\vec{GB} + \\vec{GC} = \\vec{GD}$"
+        },
+        answer: "A",
+        explanation: "Vì $G$ là trọng tâm tam giác $ABC$ nên $\\vec{GA} + \\vec{GB} + \\vec{GC} = \\vec{0}$. Với điểm $D$ bất kì: $\\vec{DA} + \\vec{DB} + \\vec{DC} = 3\\vec{DG}$.",
+        time: 25
+      },
+      {
+        id: 23,
+        category: "Trọng tâm tứ diện",
+        level: "Thông hiểu",
+        question: "Cho tứ diện $ABCD$ có trọng tâm $G$. Đẳng thức nào sau đây là đúng?",
+        svgType: "vector_tetrahedron",
+        options: {
+          A: "$\\vec{GA} + \\vec{GB} + \\vec{GC} + \\vec{GD} = \\vec{0}$",
+          B: "$\\vec{GA} + \\vec{GB} + \\vec{GC} + \\vec{GD} = 4\\vec{OG}$",
+          C: "$\\vec{GA} + \\vec{GB} = \\vec{GC} + \\vec{GD}$",
+          D: "$\\vec{GA} + \\vec{GB} + \\vec{GC} = \\vec{GD}$"
+        },
+        answer: "A",
+        explanation: "Theo tính chất trọng tâm tứ diện $ABCD$ (Câu 11, trang 2): $\\vec{GA} + \\vec{GB} + \\vec{GC} + \\vec{GD} = \\vec{0}$.",
+        time: 25
+      },
+      {
+        id: 24,
+        category: "Trọng tâm tứ diện",
+        level: "Thông hiểu",
+        question: "Cho $G$ là trọng tâm tứ diện $ABCD$. Với điểm $M$ bất kì trong không gian, ta luôn có:",
+        svgType: null,
+        options: {
+          A: "$\\vec{MA} + \\vec{MB} + \\vec{MC} + \\vec{MD} = 4\\vec{MG}$",
+          B: "$\\vec{MA} + \\vec{MB} + \\vec{MC} + \\vec{MD} = \\vec{MG}$",
+          C: "$\\vec{MA} + \\vec{MB} + \\vec{MC} + \\vec{MD} = 2\\vec{MG}$",
+          D: "$\\vec{MA} + \\vec{MB} + \\vec{MC} + \\vec{MD} = \\vec{0}$"
+        },
+        answer: "A",
+        explanation: "Do $\\vec{GA} + \\vec{GB} + \\vec{GC} + \\vec{GD} = \\vec{0}$, chèn điểm $M$ vào ta được $\\vec{MA} + \\vec{MB} + \\vec{MC} + \\vec{MD} = 4\\vec{MG}$.",
+        time: 25
+      },
+      {
+        id: 25,
+        category: "Tích vô hướng",
+        level: "Thông hiểu",
+        question: "Cho hai vectơ $\\vec{a}$ và $\\vec{b}$ cùng hướng và đều khác $\\vec{0}$. Khi đó tích vô hướng $\\vec{a} \\cdot \\vec{b}$ bằng:",
+        svgType: null,
+        options: {
+          A: "$|\\vec{a}| \\cdot |\\vec{b}|$",
+          B: "$-|\\vec{a}| \\cdot |\\vec{b}|$",
+          C: "$0$",
+          D: "$1$"
+        },
+        answer: "A",
+        explanation: "Vì $\\vec{a}$ và $\\vec{b}$ cùng hướng nên góc $(\\vec{a}, \\vec{b}) = 0^\\circ \\implies \\cos 0^\\circ = 1 \\implies \\vec{a} \\cdot \\vec{b} = |\\vec{a}| \\cdot |\\vec{b}|$.",
+        time: 25
+      },
+      {
+        id: 26,
+        category: "Tích vô hướng",
+        level: "Thông hiểu",
+        question: "Cho hai vectơ $\\vec{a}$ và $\\vec{b}$ ngược hướng và đều khác $\\vec{0}$. Khi đó tích vô hướng $\\vec{a} \\cdot \\vec{b}$ bằng:",
+        svgType: null,
+        options: {
+          A: "$-|\\vec{a}| \\cdot |\\vec{b}|$",
+          B: "$|\\vec{a}| \\cdot |\\vec{b}|$",
+          C: "$0$",
+          D: "$-1$"
+        },
+        answer: "A",
+        explanation: "Vì hai vectơ ngược hướng nên $(\\vec{a}, \\vec{b}) = 180^\\circ \\implies \\cos 180^\\circ = -1 \\implies \\vec{a} \\cdot \\vec{b} = -|\\vec{a}| \\cdot |\\vec{b}|$.",
+        time: 25
+      },
+      {
+        id: 27,
+        category: "Góc giữa hai vectơ",
+        level: "Thông hiểu",
+        question: "Cho tam giác $ABC$ đều cạnh $a$. Góc giữa hai vectơ $\\vec{AB}$ và $\\vec{AC}$ bằng:",
+        svgType: null,
+        options: {
+          A: "$60^\\circ$",
+          B: "$120^\\circ$",
+          C: "$30^\\circ$",
+          D: "$90^\\circ$"
+        },
+        answer: "A",
+        explanation: "Hai vectơ có cùng gốc $A$ nên góc giữa chúng chính là góc $\\widehat{BAC} = 60^\\circ$.",
+        time: 20
+      },
+      {
+        id: 28,
+        category: "Tích vô hướng",
+        level: "Vận dụng",
+        question: "Cho tam giác đều $ABC$ cạnh $a$. Tích vô hướng $\\vec{AB} \\cdot \\vec{AC}$ bằng:",
+        svgType: null,
+        options: {
+          A: "$\\dfrac{a^2}{2}$",
+          B: "$a^2$",
+          C: "$\\dfrac{a^2\\sqrt{3}}{2}$",
+          D: "$-\\dfrac{a^2}{2}$"
+        },
+        answer: "A",
+        explanation: "$\\vec{AB} \\cdot \\vec{AC} = |\\vec{AB}| \\cdot |\\vec{AC}| \\cdot \\cos 60^\\circ = a \\cdot a \\cdot \\dfrac{1}{2} = \\dfrac{a^2}{2}$.",
+        time: 30
+      },
+      {
+        id: 29,
+        category: "Hình lập phương",
+        level: "Thông hiểu",
+        question: "Cho hình lập phương $ABCD.A'B'C'D'$. Góc giữa hai vectơ $\\vec{AB}$ và $\\vec{A'D'}$ bằng:",
+        svgType: "vector_box_rule",
+        options: {
+          A: "$90^\\circ$",
+          B: "$45^\\circ$",
+          C: "$60^\\circ$",
+          D: "$180^\\circ$"
+        },
+        answer: "A",
+        explanation: "Ta có $\\vec{A'D'} = \\vec{AD}$. Do đó $(\\vec{AB}, \\vec{A'D'}) = (\\vec{AB}, \\vec{AD}) = \\widehat{BAD} = 90^\\circ$ (vì đáy $ABCD$ là hình vuông).",
+        time: 30
+      },
+      {
+        id: 30,
+        category: "Quy tắc ba điểm",
+        level: "Thông hiểu",
+        question: "Rút gọn tổng $\\vec{AB} + \\vec{BC} + \\vec{CD}$ trong không gian ta được vectơ nào?",
+        svgType: null,
+        options: {
+          A: "$\\vec{AD}$",
+          B: "$\\vec{DA}$",
+          C: "$\\vec{AC}$",
+          D: "$\\vec{BD}$"
+        },
+        answer: "A",
+        explanation: "Áp dụng quy tắc cộng liên tiếp: $(\\vec{AB} + \\vec{BC}) + \\vec{CD} = \\vec{AC} + \\vec{CD} = \\vec{AD}$.",
+        time: 20
+      },
+      {
+        id: 31,
+        category: "Hệ thức trung điểm",
+        level: "Vận dụng",
+        question: "Cho tứ diện $ABCD$. Gọi $M$ và $N$ lần lượt là trung điểm của $AB$ và $CD$. Đẳng thức nào sau đây đúng?",
+        svgType: null,
+        options: {
+          A: "$\\vec{MN} = \\dfrac{1}{2}(\\vec{AD} + \\vec{BC})$",
+          B: "$\\vec{MN} = \\vec{AD} + \\vec{BC}$",
+          C: "$\\vec{MN} = \\dfrac{1}{2}(\\vec{AB} + \\vec{CD})$",
+          D: "$\\vec{MN} = 2(\\vec{AD} + \\vec{BC})$"
+        },
+        answer: "A",
+        explanation: "Theo bài tập 5a (trang 2): $\\vec{MN} = \\vec{MA} + \\vec{AD} + \\vec{DN}$ và $\\vec{MN} = \\vec{MB} + \\vec{BC} + \\vec{CN}$. Cộng lại vế theo vế và dùng $\\vec{MA}+\\vec{MB}=\\vec{0}, \\vec{DN}+\\vec{CN}=\\vec{0}$ ta được $2\\vec{MN} = \\vec{AD} + \\vec{BC}$.",
+        time: 35
+      },
+      {
+        id: 32,
+        category: "Hình bình hành",
+        level: "Vận dụng",
+        question: "Cho tứ giác $ABCD$. Điều kiện cần và đủ để tứ giác $ABCD$ là hình bình hành là:",
+        svgType: "vector_parallelogram",
+        options: {
+          A: "$\\vec{AB} = \\vec{DC}$",
+          B: "$\\vec{AB} = \\vec{CD}$",
+          C: "$\\vec{AC} = \\vec{BD}$",
+          D: "$\\vec{AB} + \\vec{BC} = \\vec{0}$"
+        },
+        answer: "A",
+        explanation: "Tứ giác $ABCD$ là hình bình hành khi và chỉ khi hai cạnh đối $AB$ và $DC$ song song và bằng nhau, đồng thời cùng hướng, tức là $\\vec{AB} = \\vec{DC}$.",
+        time: 25
+      }
+    ];
+
+    /* ==========================================================
+       SVG DIAGRAMS FOR VECTORS IN SPACE
+       ========================================================== */
+    function renderSvgDiagram(type) {
+      if (!type) return "";
+      switch (type) {
+        case "vector_single":
+          return `
+            <svg width="280" height="120" viewBox="0 0 280 120">
+              <defs>
+                <marker id="arrow1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                  <path d="M 0 0 L 8 4 L 0 8 z" fill="#6366f1" />
+                </marker>
+              </defs>
+              <line x1="40" y1="60" x2="230" y2="60" stroke="#6366f1" stroke-width="3" marker-end="url(#arrow1)"/>
+              <circle cx="40" cy="60" r="4" fill="#f59e0b"/>
+              <circle cx="225" cy="60" r="4" fill="#f59e0b"/>
+              <text x="32" y="85" fill="#fff" font-weight="bold">A (Điểm đầu)</text>
+              <text x="210" y="85" fill="#fff" font-weight="bold">B (Điểm cuối)</text>
+              <text x="135" y="45" fill="#a5b4fc" font-size="13" font-weight="bold">vectơ AB</text>
+            </svg>`;
+
+        case "vector_parallel":
+          return `
+            <svg width="280" height="130" viewBox="0 0 280 130">
+              <defs>
+                <marker id="arrow2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                  <path d="M 0 0 L 8 4 L 0 8 z" fill="#10b981" />
+                </marker>
+                <marker id="arrow3" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                  <path d="M 0 0 L 8 4 L 0 8 z" fill="#f59e0b" />
+                </marker>
+              </defs>
+              <line x1="40" y1="40" x2="220" y2="40" stroke="#10b981" stroke-width="2.5" marker-end="url(#arrow2)"/>
+              <line x1="60" y1="90" x2="240" y2="90" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#arrow3)"/>
+              <text x="120" y="28" fill="#10b981" font-size="12" font-weight="bold">vectơ a</text>
+              <text x="140" y="115" fill="#f59e0b" font-size="12" font-weight="bold">vectơ b (Cùng phương: giá song song)</text>
+            </svg>`;
+
+        case "vector_equal":
+          return `
+            <svg width="280" height="130" viewBox="0 0 280 130">
+              <defs>
+                <marker id="arrowEq" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                  <path d="M 0 0 L 8 4 L 0 8 z" fill="#38bdf8" />
+                </marker>
+              </defs>
+              <line x1="40" y1="45" x2="200" y2="45" stroke="#38bdf8" stroke-width="3" marker-end="url(#arrowEq)"/>
+              <line x1="40" y1="95" x2="200" y2="95" stroke="#38bdf8" stroke-width="3" marker-end="url(#arrowEq)"/>
+              <text x="215" y="50" fill="#38bdf8" font-size="12" font-weight="bold">a</text>
+              <text x="215" y="100" fill="#38bdf8" font-size="12" font-weight="bold">b</text>
+              <text x="120" y="125" fill="#fff" font-size="11">Cùng hướng và |a| = |b|</text>
+            </svg>`;
+
+        case "vector_opposite":
+          return `
+            <svg width="280" height="130" viewBox="0 0 280 130">
+              <defs>
+                <marker id="arrowOpp1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                  <path d="M 0 0 L 8 4 L 0 8 z" fill="#10b981" />
+                </marker>
+                <marker id="arrowOpp2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                  <path d="M 0 0 L 8 4 L 0 8 z" fill="#ef4444" />
+                </marker>
+              </defs>
+              <line x1="40" y1="45" x2="200" y2="45" stroke="#10b981" stroke-width="3" marker-end="url(#arrowOpp1)"/>
+              <line x1="200" y1="95" x2="40" y2="95" stroke="#ef4444" stroke-width="3" marker-end="url(#arrowOpp2)"/>
+              <text x="215" y="50" fill="#10b981" font-size="12" font-weight="bold">a</text>
+              <text x="215" y="100" fill="#ef4444" font-size="12" font-weight="bold">-a (Ngược hướng, cùng độ dài)</text>
+            </svg>`;
+
+        case "vector_sum_3pts":
+          return `
+            <svg width="280" height="150" viewBox="0 0 280 150">
+              <defs>
+                <marker id="arrSum" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                  <path d="M 0 0 L 8 4 L 0 8 z" fill="#6366f1" />
+                </marker>
+                <marker id="arrRes" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                  <path d="M 0 0 L 8 4 L 0 8 z" fill="#f59e0b" />
+                </marker>
+              </defs>
+              <line x1="40" y1="120" x2="140" y2="40" stroke="#6366f1" stroke-width="2.5" marker-end="url(#arrSum)"/>
+              <line x1="140" y1="40" x2="240" y2="120" stroke="#6366f1" stroke-width="2.5" marker-end="url(#arrSum)"/>
+              <line x1="40" y1="120" x2="235" y2="120" stroke="#f59e0b" stroke-width="3" stroke-dasharray="5,3" marker-end="url(#arrRes)"/>
+              <circle cx="40" cy="120" r="4" fill="#fff"/>
+              <circle cx="140" cy="40" r="4" fill="#fff"/>
+              <circle cx="240" cy="120" r="4" fill="#fff"/>
+              <text x="25" y="125" fill="#fff" font-weight="bold">A</text>
+              <text x="135" y="28" fill="#fff" font-weight="bold">B</text>
+              <text x="248" y="125" fill="#fff" font-weight="bold">C</text>
+              <text x="120" y="142" fill="#f59e0b" font-weight="bold" font-size="12">AB + BC = AC</text>
+            </svg>`;
+
+        case "vector_parallelogram":
+          return `
+            <svg width="280" height="150" viewBox="0 0 280 150">
+              <polygon points="50,110 170,110 230,40 110,40" fill="rgba(99,102,241,0.12)" stroke="#6366f1" stroke-width="1.5" />
+              <defs>
+                <marker id="arrP" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                  <path d="M 0 0 L 8 4 L 0 8 z" fill="#f59e0b" />
+                </marker>
+              </defs>
+              <line x1="50" y1="110" x2="165" y2="110" stroke="#38bdf8" stroke-width="2.5" marker-end="url(#arrP)"/>
+              <line x1="50" y1="110" x2="108" y2="44" stroke="#10b981" stroke-width="2.5" marker-end="url(#arrP)"/>
+              <line x1="50" y1="110" x2="225" y2="42" stroke="#f59e0b" stroke-width="3" stroke-dasharray="4,2" marker-end="url(#arrP)"/>
+              <text x="35" y="118" fill="#fff" font-weight="bold">A</text>
+              <text x="175" y="120" fill="#fff" font-weight="bold">B</text>
+              <text x="238" y="42" fill="#fff" font-weight="bold">C</text>
+              <text x="98" y="35" fill="#fff" font-weight="bold">D</text>
+              <text x="115" y="80" fill="#f59e0b" font-size="11" font-weight="bold">AB + AD = AC</text>
+            </svg>`;
+
+        case "vector_box_rule":
+          return `
+            <svg width="280" height="170" viewBox="0 0 280 170">
+              <!-- Back faces -->
+              <line x1="90" y1="50" x2="210" y2="50" stroke="#334155" stroke-dasharray="3,3"/>
+              <line x1="90" y1="50" x2="40" y2="110" stroke="#334155" stroke-dasharray="3,3"/>
+              <line x1="90" y1="50" x2="90" y2="10" stroke="#334155" stroke-dasharray="3,3"/>
+              <!-- Base ABCD -->
+              <polygon points="40,110 160,110 210,50 90,50" fill="none" stroke="#6366f1" stroke-width="1.5"/>
+              <!-- Top A'B'C'D' -->
+              <polygon points="40,70 160,70 210,10 90,10" fill="rgba(99,102,241,0.08)" stroke="#6366f1" stroke-width="1.5"/>
+              <!-- Vertical edges -->
+              <line x1="40" y1="110" x2="40" y2="70" stroke="#6366f1" stroke-width="2"/>
+              <line x1="160" y1="110" x2="160" y2="70" stroke="#6366f1" stroke-width="2"/>
+              <line x1="210" y1="50" x2="210" y2="10" stroke="#6366f1" stroke-width="2"/>
+              <!-- Box Rule Vector Diagonal: AC' -->
+              <line x1="40" y1="110" x2="208" y2="12" stroke="#f59e0b" stroke-width="3" stroke-dasharray="4,2"/>
+              <text x="25" y="118" fill="#fff" font-weight="bold">A</text>
+              <text x="168" y="118" fill="#fff" font-weight="bold">B</text>
+              <text x="80" y="45" fill="#94a3b8">D</text>
+              <text x="216" y="8" fill="#f59e0b" font-weight="bold">C'</text>
+              <text x="25" y="65" fill="#a5b4fc">A'</text>
+              <text x="70" y="150" fill="#f59e0b" font-size="11" font-weight="bold">AB + AD + AA' = AC'</text>
+            </svg>`;
+
+        case "vector_prism":
+          return `
+            <svg width="260" height="150" viewBox="0 0 260 150">
+              <polygon points="50,130 130,140 100,100" fill="none" stroke="#6366f1" stroke-width="1.5"/>
+              <polygon points="50,50 130,60 100,20" fill="none" stroke="#6366f1" stroke-width="1.5"/>
+              <line x1="50" y1="130" x2="50" y2="50" stroke="#6366f1" stroke-width="1.5"/>
+              <line x1="130" y1="140" x2="130" y2="60" stroke="#6366f1" stroke-width="1.5"/>
+              <line x1="100" y1="100" x2="100" y2="20" stroke="#334155" stroke-dasharray="3,3"/>
+              <text x="35" y="135" fill="#fff" font-weight="bold">B</text>
+              <text x="140" y="145" fill="#fff" font-weight="bold">C</text>
+              <text x="105" y="98" fill="#94a3b8">A</text>
+              <text x="140" y="65" fill="#38bdf8" font-weight="bold">C'</text>
+              <text x="105" y="18" fill="#38bdf8" font-weight="bold">A'</text>
+            </svg>`;
+
+        case "vector_tetrahedron":
+          return `
+            <svg width="260" height="160" viewBox="0 0 260 160">
+              <line x1="60" y1="130" x2="200" y2="130" stroke="#6366f1" stroke-width="1.5"/>
+              <line x1="60" y1="130" x2="110" y2="100" stroke="#334155" stroke-dasharray="3,3"/>
+              <line x1="200" y1="130" x2="110" y2="100" stroke="#334155" stroke-dasharray="3,3"/>
+              <line x1="130" y1="20" x2="60" y2="130" stroke="#6366f1" stroke-width="2"/>
+              <line x1="130" y1="20" x2="200" y2="130" stroke="#6366f1" stroke-width="2"/>
+              <line x1="130" y1="20" x2="110" y2="100" stroke="#6366f1" stroke-width="1.5"/>
+              <circle cx="125" cy="85" r="4" fill="#f59e0b"/>
+              <text x="130" y="14" fill="#fff" font-weight="bold">A</text>
+              <text x="48" y="140" fill="#fff" font-weight="bold">B</text>
+              <text x="208" y="140" fill="#fff" font-weight="bold">C</text>
+              <text x="100" y="95" fill="#94a3b8">D</text>
+              <text x="135" y="88" fill="#f59e0b" font-weight="bold">G (Trọng tâm)</text>
+            </svg>`;
+
+        case "vector_angle":
+          return `
+            <svg width="260" height="140" viewBox="0 0 260 140">
+              <defs>
+                <marker id="arrAng" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                  <path d="M 0 0 L 8 4 L 0 8 z" fill="#6366f1" />
+                </marker>
+              </defs>
+              <line x1="50" y1="110" x2="210" y2="110" stroke="#6366f1" stroke-width="2.5" marker-end="url(#arrAng)"/>
+              <line x1="50" y1="110" x2="160" y2="30" stroke="#6366f1" stroke-width="2.5" marker-end="url(#arrAng)"/>
+              <path d="M 85,110 A 35 35 0 0 0 76,80" fill="none" stroke="#f59e0b" stroke-width="2"/>
+              <circle cx="50" cy="110" r="4" fill="#fff"/>
+              <text x="35" y="125" fill="#fff" font-weight="bold">A</text>
+              <text x="218" y="115" fill="#fff" font-weight="bold">B (u)</text>
+              <text x="168" y="30" fill="#fff" font-weight="bold">C (v)</text>
+              <text x="95" y="95" fill="#f59e0b" font-weight="bold">(u, v) = BAC</text>
+            </svg>`;
+
+        default:
+          return "";
+      }
+    }
+
+    /* ==========================================================
+       APP ENGINE
+       ========================================================== */
+    const App = {
+      state: {
+        gameMode: "SOLO",
+        rawPin: "682419",
+        pin: "682 419",
+        playerName: "Học sinh 1",
+        questions: [],
+        currentIndex: 0,
+        totalQuestions: 20,
+        questionTimeLimit: 20,
+        remainingTime: 20,
+        timerInterval: null,
+        score: 0,
+        correctCount: 0,
+        wrongCount: 0,
+        currentCombo: 0,
+        maxCombo: 0,
+        answered: false,
+        shuffledOptionsMap: {},
+        players: [],
+        questionStats: [],
+        mqttClient: null,
+        mqttConnected: false
+      },
+
+      init() {
+        document.getElementById('btnMute').addEventListener('click', () => {
+          const isMuted = SoundEngine.toggle();
+          document.getElementById('btnMute').innerHTML = isMuted ?
+            '<i class="fa-solid fa-volume-xmark"></i>' : '<i class="fa-solid fa-volume-high"></i>';
+        });
+
+        document.getElementById('btnPresentation').addEventListener('click', () => {
+          document.body.classList.toggle('presentation-mode');
+          const isPres = document.body.classList.contains('presentation-mode');
+          document.getElementById('btnPresentation').classList.toggle('active', isPres);
+        });
+
+        document.getElementById('btnHome').addEventListener('click', () => {
+          this.confirmHome();
+        });
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const pinFromUrl = urlParams.get('pin');
+        if (pinFromUrl) {
+          this.showJoinScreen();
+          const pinInput = document.getElementById('joinPinInput');
+          if (pinInput) {
+            pinInput.value = pinFromUrl;
+            pinInput.readOnly = true;
+            pinInput.style.borderColor = "var(--success)";
+          }
+          setTimeout(() => {
+            document.getElementById('joinNameInput').focus();
+          }, 300);
+        }
+      },
+
+      showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        const target = document.getElementById(screenId);
+        if (target) target.classList.add('active');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
+
+      showHome() {
+        clearInterval(this.state.timerInterval);
+        this.showScreen('screenHome');
+      },
+
+      confirmHome() {
+        this.showConfirmModal("VỀ TRANG CHỦ", "Bạn có chắc muốn về trang chủ? Trận đấu hiện tại sẽ kết thúc.", () => {
+          this.showHome();
+        });
+      },
+
+      showToast(msg) {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = 'toast-msg';
+        toast.innerHTML = msg;
+        container.appendChild(toast);
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          toast.style.transition = 'opacity 0.4s';
+          setTimeout(() => toast.remove(), 400);
+        }, 3000);
+      },
+
+      showConfirmModal(title, msg, onConfirm) {
+        const modal = document.getElementById('customConfirmModal');
+        document.getElementById('modalTitle').innerText = title;
+        document.getElementById('modalMessage').innerText = msg;
+        const confirmBtn = document.getElementById('modalConfirmBtn');
+        confirmBtn.onclick = () => {
+          this.closeModal();
+          if (onConfirm) onConfirm();
+        };
+        modal.style.display = 'flex';
+      },
+
+      closeModal() {
+        document.getElementById('customConfirmModal').style.display = 'none';
+      },
+
+      showTeacherSetup() {
+        this.showScreen('screenTeacherSetup');
+      },
+
+      createRoom() {
+        const rawPin = Math.floor(100000 + Math.random() * 900000).toString();
+        this.state.rawPin = rawPin;
+        this.state.pin = rawPin.substring(0,3) + " " + rawPin.substring(3,6);
+        this.state.gameMode = "TEACHER_HOST";
+        this.state.totalQuestions = parseInt(document.getElementById('cfgNumQuestions').value);
+        this.state.questionTimeLimit = parseInt(document.getElementById('cfgQuestionTime').value);
+
+        document.getElementById('lobbyPinDisplay').innerText = this.state.pin;
+
+        const qrBox = document.getElementById('lobbyQrCode');
+        qrBox.innerHTML = "";
+        const baseUrl = window.location.protocol.startsWith('http')
+          ? (window.location.origin + window.location.pathname)
+          : window.location.href.split('?')[0];
+
+        const targetJoinUrl = baseUrl + "?pin=" + rawPin;
+
+        new QRCode(qrBox, {
+          text: targetJoinUrl,
+          width: 140,
+          height: 140,
+          colorDark: "#090d16",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+
+        const useDemo = document.getElementById('cfgIncludeDemoPlayers').checked;
+        this.state.players = [];
+        if (useDemo) {
+          const demoNames = ["Nguyễn An", "Minh Anh", "Hoàng Nam", "Lê Bình", "Trần Chi"];
+          this.state.players = demoNames.map(name => ({
+            name: name,
+            score: 0,
+            correct: 0,
+            wrong: 0,
+            isBot: true
+          }));
+        }
+
+        this.renderLobbyPlayers();
+        this.showScreen('screenTeacherLobby');
+        this.initTeacherMqtt(rawPin);
+      },
+
+      initTeacherMqtt(rawPin) {
+        const badge = document.getElementById('mqttConnectionBadge');
+        if (badge) badge.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang kết nối Trạm Đám mây...`;
+
+        try {
+          const clientId = "host_vec_" + rawPin + "_" + Math.random().toString(16).substr(2, 6);
+          const client = new Paho.MQTT.Client("broker.hivemq.com", Number(8884), "/mqtt", clientId);
+
+          client.onConnectionLost = (res) => {
+            console.warn("Mất kết nối MQTT:", res.errorMessage);
+          };
+
+          client.onMessageArrived = (message) => {
+            try {
+              const data = JSON.parse(message.payloadString);
+              if (data.action === "STUDENT_JOIN") {
+                const sName = data.name.trim();
+                const existing = this.state.players.find(p => p.name === sName);
+                if (!existing) {
+                  this.state.players.push({
+                    name: sName,
+                    score: 0,
+                    correct: 0,
+                    wrong: 0,
+                    isBot: false
+                  });
+                  SoundEngine.playCorrect();
+                  this.renderLobbyPlayers();
+                  this.showToast(`🎉 ${sName} đã vào phòng thi đấu!`);
+                }
+              } else if (data.action === "STUDENT_ANSWER") {
+                const s = this.state.players.find(p => p.name === data.name);
+                if (s) {
+                  s.score += data.points || 0;
+                  if (data.isCorrect) s.correct++;
+                  else s.wrong++;
+                }
+                const stats = this.state.questionStats[this.state.currentIndex];
+                if (stats && data.chosenOriginalKey) {
+                  stats.counts[data.chosenOriginalKey]++;
+                  if (data.isCorrect) stats.correctCount++;
+                }
+              }
+            } catch (err) {
+              console.error(err);
+            }
+          };
+
+          client.connect({
+            useSSL: true,
+            timeout: 5,
+            onSuccess: () => {
+              this.state.mqttClient = client;
+              this.state.mqttConnected = true;
+              client.subscribe(`toan12_vecto_${rawPin}/join`);
+              client.subscribe(`toan12_vecto_${rawPin}/answers`);
+              if (badge) badge.innerHTML = `<i class="fa-solid fa-wifi" style="color:var(--success);"></i> Trạm Realtime Sẵn Sàng (Quét mã vào thi ngay)`;
+            },
+            onFailure: (err) => {
+              console.warn("MQTT Failure:", err);
+              if (badge) badge.innerHTML = `<i class="fa-solid fa-triangle-exclamation" style="color:var(--warning);"></i> Chế độ Cục bộ (Offline)`;
+            }
+          });
+        } catch (e) {
+          console.warn("MQTT Init error:", e);
+        }
+      },
+
+      renderLobbyPlayers() {
+        const tbody = document.getElementById('playerTableBody');
+        tbody.innerHTML = "";
+        document.getElementById('playerCount').innerText = this.state.players.length;
+
+        if (this.state.players.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#94a3b8;">Chưa có học sinh nào vào phòng...</td></tr>`;
+          return;
+        }
+
+        this.state.players.forEach((p, idx) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${(idx + 1).toString().padStart(2, '0')}</td>
+            <td style="font-weight:700; color:#fff;">${p.name}</td>
+            <td style="color:var(--success); font-weight:700;"><i class="fa-solid fa-circle-check"></i> Sẵn sàng</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      },
+
+      showJoinScreen() {
+        this.showScreen('screenJoin');
+      },
+
+      submitJoin() {
+        SoundEngine.init();
+        const pinInput = document.getElementById('joinPinInput').value.trim().replace(/\s/g, '');
+        const nameInput = document.getElementById('joinNameInput').value.trim();
+
+        if (!nameInput) {
+          this.showToast("Vui lòng nhập họ và tên của bạn!");
+          return;
+        }
+
+        this.state.playerName = nameInput;
+        this.state.rawPin = pinInput;
+        this.state.gameMode = "STUDENT_CLIENT";
+
+        document.getElementById('studentWaitingName').innerText = nameInput;
+        document.getElementById('studentWaitingPin').innerText = pinInput.length >= 6 ? (pinInput.substring(0,3) + " " + pinInput.substring(3,6)) : pinInput;
+
+        this.showScreen('screenStudentWaiting');
+
+        try {
+          const clientId = "stu_vec_" + Math.random().toString(16).substr(2, 6);
+          const client = new Paho.MQTT.Client("broker.hivemq.com", Number(8884), "/mqtt", clientId);
+
+          client.connect({
+            useSSL: true,
+            timeout: 5,
+            onSuccess: () => {
+              this.state.mqttClient = client;
+              this.state.mqttConnected = true;
+
+              const msg = new Paho.MQTT.Message(JSON.stringify({
+                action: "STUDENT_JOIN",
+                name: nameInput
+              }));
+              msg.destinationName = `toan12_vecto_${pinInput}/join`;
+              client.send(msg);
+
+              client.subscribe(`toan12_vecto_${pinInput}/control`);
+              client.onMessageArrived = (msg) => {
+                try {
+                  const cmd = JSON.parse(msg.payloadString);
+                  if (cmd.action === "GAME_START") {
+                    this.state.questions = cmd.questions;
+                    this.state.totalQuestions = cmd.questions.length;
+                    this.state.players = cmd.players || [];
+                    this.startGameSessionFromHost();
+                  } else if (cmd.action === "SHOW_LEADERBOARD") {
+                    if (cmd.players) this.state.players = cmd.players;
+                    this.showRoundLeaderboard();
+                  } else if (cmd.action === "NEXT_QUESTION") {
+                    this.state.currentIndex = cmd.questionIndex;
+                    this.showScreen('screenGameplay');
+                    this.loadCurrentQuestion();
+                  } else if (cmd.action === "GAME_FINISH") {
+                    if (cmd.players) this.state.players = cmd.players;
+                    this.finishGame();
+                  }
+                } catch (e) {
+                  console.error(e);
+                }
+              };
+
+              this.showToast("Đã vào phòng! Tên bạn đã xuất hiện trên máy chiếu.");
+            },
+            onFailure: () => {
+              this.showToast("Không kết nối được Realtime. Vui lòng kiểm tra mạng!");
+            }
+          });
+        } catch (e) {
+          console.warn(e);
+        }
+      },
+
+      startPracticeMode() {
+        SoundEngine.init();
+        this.state.playerName = "Học sinh (Ôn tập lý thuyết)";
+        this.state.gameMode = "PRACTICE";
+        this.state.totalQuestions = 15;
+        this.state.questionTimeLimit = 45;
+        this.state.players = [{ name: this.state.playerName, score: 0, correct: 0, wrong: 0, isBot: false }];
+        this.startGameSession();
+      },
+
+      startHostGame() {
+        SoundEngine.init();
+        this.state.currentIndex = 0;
+        this.state.score = 0;
+        this.state.correctCount = 0;
+        this.state.wrongCount = 0;
+        this.state.currentCombo = 0;
+        this.state.maxCombo = 0;
+
+        const shuffled = [...QUESTION_BANK].sort(() => 0.5 - Math.random());
+        this.state.questions = shuffled.slice(0, this.state.totalQuestions);
+
+        this.state.questionStats = this.state.questions.map(q => ({
+          id: q.id,
+          counts: { A: 0, B: 0, C: 0, D: 0 },
+          correctCount: 0,
+          total: 0
+        }));
+
+        if (this.state.mqttClient && this.state.mqttConnected) {
+          try {
+            const startMsg = new Paho.MQTT.Message(JSON.stringify({
+              action: "GAME_START",
+              questions: this.state.questions,
+              players: this.state.players
+            }));
+            startMsg.destinationName = `toan12_vecto_${this.state.rawPin}/control`;
+            this.state.mqttClient.send(startMsg);
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+
+        this.showScreen('screenGameplay');
+        this.loadCurrentQuestion();
+      },
+
+      startGameSessionFromHost() {
+        this.state.currentIndex = 0;
+        this.state.score = 0;
+        this.state.correctCount = 0;
+        this.state.wrongCount = 0;
+        this.state.currentCombo = 0;
+        this.state.maxCombo = 0;
+
+        this.state.questionStats = this.state.questions.map(q => ({
+          id: q.id,
+          counts: { A: 0, B: 0, C: 0, D: 0 },
+          correctCount: 0,
+          total: 0
+        }));
+
+        this.showScreen('screenGameplay');
+        this.loadCurrentQuestion();
+      },
+
+      startGameSession() {
+        this.state.currentIndex = 0;
+        this.state.score = 0;
+        this.state.correctCount = 0;
+        this.state.wrongCount = 0;
+        this.state.currentCombo = 0;
+        this.state.maxCombo = 0;
+
+        const shuffled = [...QUESTION_BANK].sort(() => 0.5 - Math.random());
+        this.state.questions = shuffled.slice(0, this.state.totalQuestions);
+
+        this.state.questionStats = this.state.questions.map(q => ({
+          id: q.id,
+          counts: { A: 0, B: 0, C: 0, D: 0 },
+          correctCount: 0,
+          total: 0
+        }));
+
+        this.showScreen('screenGameplay');
+        this.loadCurrentQuestion();
+      },
+
+      loadCurrentQuestion() {
+        clearInterval(this.state.timerInterval);
+        this.state.answered = false;
+
+        const q = this.state.questions[this.state.currentIndex];
+        const isFinal = (this.state.currentIndex === this.state.totalQuestions - 1);
+
+        document.getElementById('qCounterDisplay').innerText =
+          `CÂU ${(this.state.currentIndex + 1).toString().padStart(2, '0')} / ${this.state.totalQuestions.toString().padStart(2, '0')}`;
+        document.getElementById('finalShowdownBadge').style.display = isFinal ? 'inline-block' : 'none';
+
+        const progressPct = ((this.state.currentIndex) / this.state.totalQuestions) * 100;
+        document.getElementById('progressBarFill').style.width = progressPct + "%";
+
+        document.getElementById('qCategory').innerText = q.category;
+        document.getElementById('qLevel').innerText = q.level;
+        document.getElementById('qQuestionText').innerHTML = q.question;
+
+        const svgContainer = document.getElementById('qSvgContainer');
+        const svgCode = renderSvgDiagram(q.svgType);
+        if (svgCode) {
+          svgContainer.innerHTML = svgCode;
+          svgContainer.style.display = "flex";
+        } else {
+          svgContainer.innerHTML = "";
+          svgContainer.style.display = "none";
+        }
+
+        document.getElementById('feedbackBanner').style.display = "none";
+        document.getElementById('explanationCard').classList.remove('active');
+        document.getElementById('btnNextQuestion').style.display = "none";
+        const studentWaitBox = document.getElementById('studentWaitNextBox');
+        if (studentWaitBox) studentWaitBox.style.display = "none";
+
+        const originalKeys = ['A', 'B', 'C', 'D'];
+        const shuffledKeys = [...originalKeys].sort(() => 0.5 - Math.random());
+
+        this.state.shuffledOptionsMap = {};
+        const letters = ['A', 'B', 'C', 'D'];
+        letters.forEach((letter, i) => {
+          const originalKey = shuffledKeys[i];
+          const text = q.options[originalKey];
+          this.state.shuffledOptionsMap[letter] = {
+            originalKey: originalKey,
+            isCorrect: (originalKey === q.answer),
+            text: text
+          };
+
+          const btn = document.querySelector(`.ans-${letter.toLowerCase()}`);
+          btn.className = `ans-btn ans-${letter.toLowerCase()}`;
+          btn.disabled = false;
+          document.getElementById(`ansText${letter}`).innerHTML = text;
+        });
+
+        if (window.MathJax && MathJax.typesetPromise) {
+          MathJax.typesetPromise().catch(err => console.warn(err));
+        }
+
+        const timeForThisQ = q.time || this.state.questionTimeLimit;
+        this.startTimer(timeForThisQ);
+      },
+
+      startTimer(seconds) {
+        this.state.remainingTime = seconds;
+        const timerBadge = document.getElementById('timerBadge');
+        const timerText = document.getElementById('timerText');
+
+        timerBadge.classList.remove('urgent');
+        timerText.innerText = `00:${seconds.toString().padStart(2, '0')}`;
+
+        this.state.timerInterval = setInterval(() => {
+          this.state.remainingTime--;
+          const rem = this.state.remainingTime;
+
+          if (rem <= 5 && rem > 0) {
+            timerBadge.classList.add('urgent');
+            SoundEngine.playTick();
+          }
+
+          timerText.innerText = `00:${rem.toString().padStart(2, '0')}`;
+
+          if (rem <= 0) {
+            clearInterval(this.state.timerInterval);
+            this.handleTimeout();
+          }
+        }, 1000);
+      },
+
+      handleSelectAnswer(chosenLetter) {
+        if (this.state.answered) return;
+        this.state.answered = true;
+        clearInterval(this.state.timerInterval);
+
+        const q = this.state.questions[this.state.currentIndex];
+        const selectedObj = this.state.shuffledOptionsMap[chosenLetter];
+        const isCorrect = selectedObj.isCorrect;
+
+        ['A', 'B', 'C', 'D'].forEach(letter => {
+          const btn = document.querySelector(`.ans-${letter.toLowerCase()}`);
+          btn.disabled = true;
+          if (this.state.shuffledOptionsMap[letter].isCorrect) {
+            btn.classList.add('correct-highlight');
+          } else if (letter === chosenLetter && !isCorrect) {
+            btn.classList.add('wrong-highlight');
+          }
+        });
+
+        let pointsEarned = 0;
+        const totalTime = q.time || this.state.questionTimeLimit;
+        if (isCorrect) {
+          this.state.correctCount++;
+          this.state.currentCombo++;
+          if (this.state.currentCombo > this.state.maxCombo) {
+            this.state.maxCombo = this.state.currentCombo;
+          }
+
+          const speedFactor = Math.max(0, this.state.remainingTime / totalTime);
+          pointsEarned = Math.round(500 + 500 * speedFactor);
+          this.state.score += pointsEarned;
+
+          SoundEngine.playCorrect();
+          Confetti.fire();
+
+          let comboText = "";
+          if (this.state.currentCombo >= 5) comboText = `<span class="combo-badge">🔥 SUPER COMBO x${this.state.currentCombo}</span>`;
+          else if (this.state.currentCombo >= 2) comboText = `<span class="combo-badge">🔥 COMBO x${this.state.currentCombo}</span>`;
+
+          const feedback = document.getElementById('feedbackBanner');
+          feedback.innerHTML = `<span style="color: var(--success);"><i class="fa-solid fa-circle-check"></i> CHÍNH XÁC!</span> <span style="color:var(--accent);">+${pointsEarned} điểm</span> ${comboText}`;
+          feedback.style.display = "flex";
+        } else {
+          this.state.wrongCount++;
+          this.state.currentCombo = 0;
+          SoundEngine.playWrong();
+
+          const feedback = document.getElementById('feedbackBanner');
+          feedback.innerHTML = `<span style="color: var(--danger);"><i class="fa-solid fa-circle-xmark"></i> CHƯA CHÍNH XÁC!</span>`;
+          feedback.style.display = "flex";
+        }
+
+        if (this.state.gameMode === "STUDENT_CLIENT" && this.state.mqttClient && this.state.mqttConnected) {
+          try {
+            const ansMsg = new Paho.MQTT.Message(JSON.stringify({
+              action: "STUDENT_ANSWER",
+              name: this.state.playerName,
+              chosenOriginalKey: selectedObj.originalKey,
+              isCorrect: isCorrect,
+              points: pointsEarned
+            }));
+            ansMsg.destinationName = `toan12_vecto_${this.state.rawPin}/answers`;
+            this.state.mqttClient.send(ansMsg);
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+
+        this.simulateClassmatesAnswers(q, isCorrect ? chosenLetter : null);
+        this.showExplanation(q);
+      },
+
+      handleTimeout() {
+        if (this.state.answered) return;
+        this.state.answered = true;
+
+        const q = this.state.questions[this.state.currentIndex];
+        this.state.wrongCount++;
+        this.state.currentCombo = 0;
+        SoundEngine.playWrong();
+
+        ['A', 'B', 'C', 'D'].forEach(letter => {
+          const btn = document.querySelector(`.ans-${letter.toLowerCase()}`);
+          btn.disabled = true;
+          if (this.state.shuffledOptionsMap[letter].isCorrect) {
+            btn.classList.add('correct-highlight');
+          }
+        });
+
+        const feedback = document.getElementById('feedbackBanner');
+        feedback.innerHTML = `<span style="color: var(--danger);"><i class="fa-solid fa-clock-rotate-left"></i> HẾT THỜI GIAN!</span>`;
+        feedback.style.display = "flex";
+
+        this.simulateClassmatesAnswers(q, null);
+        this.showExplanation(q);
+      },
+
+      simulateClassmatesAnswers(question, userLetter) {
+        const stats = this.state.questionStats[this.state.currentIndex];
+        stats.total = this.state.players.length;
+
+        this.state.players.forEach(p => {
+          if (!p.isBot) {
+            p.score = this.state.score;
+            p.correct = this.state.correctCount;
+            p.wrong = this.state.wrongCount;
+            if (userLetter) {
+              const originalKey = this.state.shuffledOptionsMap[userLetter].originalKey;
+              stats.counts[originalKey]++;
+              if (originalKey === question.answer) stats.correctCount++;
+            }
+          } else {
+            let chance = 0.80; // Tỷ lệ đúng câu lý thuyết
+            if (question.level === "Vận dụng") chance = 0.60;
+
+            const isBotCorrect = Math.random() < chance;
+            if (isBotCorrect) {
+              p.score += Math.round(500 + Math.random() * 450);
+              p.correct++;
+              stats.correctCount++;
+              stats.counts[question.answer]++;
+            } else {
+              p.wrong++;
+              const wrongKeys = ['A','B','C','D'].filter(k => k !== question.answer);
+              const chosenKey = wrongKeys[Math.floor(Math.random() * wrongKeys.length)];
+              stats.counts[chosenKey]++;
+            }
+          }
+        });
+      },
+
+      showExplanation(q) {
+        document.getElementById('expCorrectAnswer').innerText = q.answer;
+        document.getElementById('expText').innerHTML = q.explanation;
+        document.getElementById('explanationCard').classList.add('active');
+
+        const btnNext = document.getElementById('btnNextQuestion');
+        const studentWaitNextBox = document.getElementById('studentWaitNextBox');
+
+        // Phân quyền: Học sinh không thể chuyển câu
+        if (this.state.gameMode === "STUDENT_CLIENT") {
+          btnNext.style.display = "none";
+          if (studentWaitNextBox) studentWaitNextBox.style.display = "flex";
+        } else {
+          btnNext.style.display = "inline-flex";
+          if (studentWaitNextBox) studentWaitNextBox.style.display = "none";
+        }
+
+        if (window.MathJax && MathJax.typesetPromise) {
+          MathJax.typesetPromise().catch(err => console.warn(err));
+        }
+      },
+
+      goToNextQuestion() {
+        if (this.state.gameMode === "TEACHER_HOST") {
+          if (this.state.mqttClient && this.state.mqttConnected) {
+            try {
+              const msg = new Paho.MQTT.Message(JSON.stringify({
+                action: "SHOW_LEADERBOARD",
+                players: this.state.players
+              }));
+              msg.destinationName = `toan12_vecto_${this.state.rawPin}/control`;
+              this.state.mqttClient.send(msg);
+            } catch (e) {
+              console.warn(e);
+            }
+          }
+          this.showRoundLeaderboard();
+        } else if (this.state.gameMode === "STUDENT_CLIENT") {
+          return;
+        } else {
+          this.advanceNext();
+        }
+      },
+
+      showRoundLeaderboard() {
+        this.showScreen('screenRoundLeaderboard');
+
+        const sorted = [...this.state.players].sort((a, b) => b.score - a.score);
+        const top5 = sorted.slice(0, 5);
+
+        const table = document.getElementById('roundLeaderboardTable');
+        table.innerHTML = "";
+        const medals = ["🥇", "🥈", "🥉", "4", "5"];
+
+        top5.forEach((p, idx) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="rank-cell">${medals[idx]}</td>
+            <td style="color:${p.isBot ? '#fff' : 'var(--accent)'}">${p.name} ${!p.isBot ? '<span style="font-size:0.8rem; background:rgba(99,102,241,0.3); padding:2px 8px; border-radius:10px;">BẠN</span>' : ''}</td>
+            <td class="score-cell">${p.score.toLocaleString()}</td>
+          `;
+          table.appendChild(tr);
+        });
+
+        const distBox = document.getElementById('distractorAnalysisBox');
+        const teacherControlBox = document.getElementById('teacherRoundControlBox');
+        const studentWaitRoundBox = document.getElementById('studentWaitRoundBox');
+
+        if (this.state.gameMode === "STUDENT_CLIENT") {
+          if (teacherControlBox) teacherControlBox.style.display = "none";
+          if (studentWaitRoundBox) studentWaitRoundBox.style.display = "flex";
+          if (distBox) distBox.style.display = "none";
+        } else {
+          if (teacherControlBox) teacherControlBox.style.display = "block";
+          if (studentWaitRoundBox) studentWaitRoundBox.style.display = "none";
+
+          if (this.state.gameMode === "TEACHER_HOST") {
+            distBox.style.display = "block";
+            const stats = this.state.questionStats[this.state.currentIndex];
+            const total = stats.total || 1;
+            const pctA = Math.round((stats.counts.A / total) * 100);
+            const pctB = Math.round((stats.counts.B / total) * 100);
+            const pctC = Math.round((stats.counts.C / total) * 100);
+            const pctD = Math.round((stats.counts.D / total) * 100);
+
+            document.getElementById('distractorStats').innerHTML = `
+              <span>A: ${pctA}%</span> | <span>B: ${pctB}%</span> | <span>C: ${pctC}%</span> | <span>D: ${pctD}%</span>
+            `;
+
+            const currentQ = this.state.questions[this.state.currentIndex];
+            let trapFound = false;
+            ['A','B','C','D'].forEach(k => {
+              if (k !== currentQ.answer && (stats.counts[k] / total) >= 0.25) {
+                trapFound = true;
+              }
+            });
+            document.getElementById('distractorWarning').style.display = trapFound ? "block" : "none";
+          } else {
+            distBox.style.display = "none";
+          }
+        }
+      },
+
+      continueFromLeaderboard() {
+        if (this.state.gameMode === "TEACHER_HOST") {
+          const nextIndex = this.state.currentIndex + 1;
+          if (nextIndex >= this.state.totalQuestions) {
+            if (this.state.mqttClient && this.state.mqttConnected) {
+              try {
+                const finishMsg = new Paho.MQTT.Message(JSON.stringify({
+                  action: "GAME_FINISH",
+                  players: this.state.players
+                }));
+                finishMsg.destinationName = `toan12_vecto_${this.state.rawPin}/control`;
+                this.state.mqttClient.send(finishMsg);
+              } catch (e) {
+                console.warn(e);
+              }
+            }
+            this.finishGame();
+          } else {
+            if (this.state.mqttClient && this.state.mqttConnected) {
+              try {
+                const nextMsg = new Paho.MQTT.Message(JSON.stringify({
+                  action: "NEXT_QUESTION",
+                  questionIndex: nextIndex
+                }));
+                nextMsg.destinationName = `toan12_vecto_${this.state.rawPin}/control`;
+                this.state.mqttClient.send(nextMsg);
+              } catch (e) {
+                console.warn(e);
+              }
+            }
+            this.state.currentIndex = nextIndex;
+            this.showScreen('screenGameplay');
+            this.loadCurrentQuestion();
+          }
+        } else {
+          this.advanceNext();
+        }
+      },
+
+      advanceNext() {
+        this.state.currentIndex++;
+        if (this.state.currentIndex >= this.state.totalQuestions) {
+          this.finishGame();
+        } else {
+          this.showScreen('screenGameplay');
+          this.loadCurrentQuestion();
+        }
+      },
+
+      finishGame() {
+        clearInterval(this.state.timerInterval);
+        SoundEngine.playVictory();
+        Confetti.fire();
+
+        this.showScreen('screenFinalResults');
+
+        const accuracy = Math.round((this.state.correctCount / this.state.totalQuestions) * 100);
+        document.getElementById('finalScoreDisplay').innerText = this.state.score.toLocaleString();
+        document.getElementById('finalAccuracyDisplay').innerText = accuracy + "%";
+        document.getElementById('finalMaxComboDisplay').innerText = "x" + this.state.maxCombo;
+
+        const badges = [];
+        if (accuracy === 100) badges.push({ icon: "fa-crown", title: "🏆 VECTOR MASTER" });
+        if (accuracy >= 80) badges.push({ icon: "fa-bullseye", title: "🎯 ACCURACY MASTER" });
+        if (this.state.maxCombo >= 5) badges.push({ icon: "fa-fire-flame-curved", title: "🔥 COMBO MASTER" });
+        if (this.state.score >= 12000) badges.push({ icon: "fa-bolt", title: "⚡ SPEED MASTER" });
+        badges.push({ icon: "fa-cube", title: "📐 3D SPACE EXPLORER" });
+
+        const badgesContainer = document.getElementById('finalBadgesContainer');
+        badgesContainer.innerHTML = "";
+        badges.forEach(b => {
+          const div = document.createElement('div');
+          div.className = "badge-chip";
+          div.innerHTML = `<i class="fa-solid ${b.icon}"></i> ${b.title}`;
+          badgesContainer.appendChild(div);
+        });
+
+        const teacherReportSec = document.getElementById('teacherReportSection');
+        if (this.state.gameMode === "TEACHER_HOST") {
+          teacherReportSec.style.display = "block";
+          const tbody = document.getElementById('teacherReportTbody');
+          tbody.innerHTML = "";
+
+          const sorted = [...this.state.players].sort((a,b) => b.score - a.score);
+          sorted.forEach(p => {
+            const acc = Math.round((p.correct / this.state.totalQuestions) * 100);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td><b>${p.name}</b></td>
+              <td style="color:var(--accent); font-weight:700;">${p.score.toLocaleString()}</td>
+              <td>${p.correct} / ${this.state.totalQuestions}</td>
+              <td>${acc}%</td>
+            `;
+            tbody.appendChild(tr);
+          });
+        } else {
+          teacherReportSec.style.display = "none";
+        }
+
+        this.saveHistoryRecord({
+          date: new Date().toLocaleDateString('vi-VN'),
+          name: this.state.playerName,
+          score: this.state.score,
+          correct: `${this.state.correctCount}/${this.state.totalQuestions}`,
+          accuracy: accuracy + "%"
+        });
+      },
+
+      restartSameGame() {
+        this.startGameSession();
+      },
+
+      saveHistoryRecord(record) {
+        try {
+          const current = JSON.parse(localStorage.getItem('vector_space_quiz_history') || '[]');
+          current.unshift(record);
+          if (current.length > 20) current.pop();
+          localStorage.setItem('vector_space_quiz_history', JSON.stringify(current));
+        } catch (e) {
+          console.warn(e);
+        }
+      },
+
+      showHistoryScreen() {
+        this.showScreen('screenHistory');
+        const tbody = document.getElementById('historyTbody');
+        const empty = document.getElementById('historyEmpty');
+        tbody.innerHTML = "";
+
+        const history = JSON.parse(localStorage.getItem('vector_space_quiz_history') || '[]');
+        if (history.length === 0) {
+          empty.style.display = "block";
+          return;
+        }
+        empty.style.display = "none";
+
+        history.forEach(item => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td style="color:#94a3b8;">${item.date}</td>
+            <td style="font-weight:700; color:#fff;">${item.name}</td>
+            <td style="color:var(--accent); font-weight:700;">${item.score.toLocaleString()}</td>
+            <td>${item.correct}</td>
+            <td style="color:var(--success); font-weight:700;">${item.accuracy}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      },
+
+      confirmClearHistory() {
+        this.showConfirmModal("XÓA LỊCH SỬ", "Bạn có chắc chắn muốn xóa toàn bộ lịch sử thi đấu trên máy?", () => {
+          localStorage.removeItem('vector_space_quiz_history');
+          this.showHistoryScreen();
+        });
+      }
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      App.init();
+    });
+  </script>
+</body>
+</html>
